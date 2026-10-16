@@ -1,4 +1,4 @@
-# Latur Municipal Corporation — Water Distribution System and Monitoring Portal
+# Municipal Corporation — Water Distribution System and Monitoring Portal
 
 **Status: Stage 1 of 7 (foundation). Not ready for municipal use.**
 
