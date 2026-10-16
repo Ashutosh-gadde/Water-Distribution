@@ -1,4 +1,4 @@
-# Latur Water Network Data & Distribution Portal — implementation scaffold
+# Water Network Data & Distribution Portal — implementation scaffold
 
 This package contains a deployment-oriented starter based on the uploaded HTML. It preserves the original file as `legacy-demo.html` for reference and provides a new authenticated shell at `index.html`, Supabase client modules, PostGIS/RLS migration, and two Edge Functions.
 
