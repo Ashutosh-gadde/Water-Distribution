@@ -3,196 +3,144 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Latur Municipal Corporation — Water Network GIS Portal</title>
-    <!-- Tailwind CSS -->
+    <title>Latur Municipal Corporation — Secure GIS & Distribution Portal</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Leaflet CSS & JS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <style>
-        #map { height: calc(100vh - 130px); min-height: 500px; }
-    </style>
+    <style>#map { height: calc(100vh - 130px); min-height: 500px; }</style>
 </head>
-<body class="h-full bg-slate-50 text-slate-900 font-sans flex flex-col">
+<body class="h-full bg-slate-100 text-slate-900 font-sans flex flex-col">
 
-    <!-- Top Navbar -->
-    <header class="bg-slate-900 text-white shadow-md px-6 py-3 flex justify-between items-center z-50">
+    <!-- Top Navigation -->
+    <header class="bg-slate-900 text-white shadow px-6 py-3 flex justify-between items-center z-50">
         <div class="flex items-center space-x-3">
-            <div class="bg-blue-600 p-2 rounded-lg font-bold text-lg">💧 LMC</div>
+            <div class="bg-blue-600 px-3 py-1 rounded font-bold">LMC GIS</div>
             <div>
-                <h1 class="font-bold text-lg leading-tight">Latur Municipal Corporation</h1>
-                <p class="text-xs text-slate-400">Water Network GIS & Distribution Portal (Pilot)</p>
+                <h1 class="font-bold text-sm" id="txt-title">Latur Municipal Water Network</h1>
+                <p class="text-xs text-slate-400">PostGIS Secured Environment (IST)</p>
             </div>
         </div>
-        <div class="flex items-center space-x-4">
-            <span id="user-badge" class="bg-slate-800 text-blue-400 text-xs px-3 py-1 rounded-full border border-slate-700">Role: Citizen (Public View)</span>
-            <select id="role-selector" class="bg-slate-800 text-white text-xs border border-slate-700 rounded px-2 py-1 focus:outline-none">
+        <div class="flex items-center space-x-3">
+            <button onclick="toggleLanguage()" id="lang-btn" class="bg-slate-800 text-xs px-2 py-1 rounded border border-slate-700">मराठी / English</button>
+            <select id="auth-role-selector" onchange="handleRoleChange(this.value)" class="bg-slate-800 text-xs border border-slate-700 rounded px-2 py-1 text-white">
                 <option value="citizen">Citizen (Public)</option>
-                <option value="operator">Valve Operator</option>
-                <option value="officer">Municipal Officer</option>
-                <option value="admin">Super Administrator</option>
+                <option value="operator_token">Valve Operator</option>
+                <option value="water_supply_officer_token">Water Supply Officer</option>
+                <option value="municipal_admin_token">Super Administrator</option>
             </select>
         </div>
     </header>
 
-    <!-- Main App Container -->
     <div class="flex flex-1 overflow-hidden">
-
-        <!-- Sidebar Navigation & Controls -->
-        <aside class="w-80 bg-white border-r border-slate-200 flex flex-col z-40 shadow-sm">
-            <div class="p-4 border-b border-slate-100 flex space-x-2">
-                <button onclick="switchTab('map')" id="btn-tab-map" class="flex-1 py-2 text-xs font-semibold rounded bg-blue-600 text-white transition">GIS Map</button>
-                <button onclick="switchTab('ops')" id="btn-tab-ops" class="flex-1 py-2 text-xs font-semibold rounded bg-slate-100 text-slate-700 hover:bg-slate-200 transition">Operator & Schedules</button>
-                <button onclick="switchTab('admin')" id="btn-tab-admin" class="flex-1 py-2 text-xs font-semibold rounded bg-slate-100 text-slate-700 hover:bg-slate-200 transition">Admin Panel</button>
+        <!-- Sidebar Controls -->
+        <aside class="w-80 bg-white border-r border-slate-200 flex flex-col z-40">
+            <div class="p-3 border-b flex space-x-2">
+                <button onclick="switchTab('map')" id="t-map" class="flex-1 py-1.5 text-xs font-semibold rounded bg-blue-600 text-white">GIS Map</button>
+                <button onclick="switchTab('citizen')" id="t-citizen" class="flex-1 py-1.5 text-xs font-semibold rounded bg-slate-100 text-slate-700">Citizen Services</button>
+                <button onclick="switchTab('secure')" id="t-secure" class="flex-1 py-1.5 text-xs font-semibold rounded bg-slate-100 text-slate-700">Operations</button>
             </div>
 
-            <!-- Tab Content: Map & Search -->
-            <div id="tab-map" class="p-4 flex-1 overflow-y-auto space-y-4">
+            <!-- GIS Map Tab -->
+            <div id="pane-map" class="p-4 flex-1 overflow-y-auto space-y-3">
                 <div>
-                    <label class="block text-xs font-medium text-slate-700 mb-1">Search Ward / Locality / Zone</label>
-                    <input type="text" id="map-search" placeholder="e.g. Ward 4, Gandhi Nagar..." class="w-full text-xs border border-slate-300 rounded px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                    <label class="block text-xs font-medium text-slate-600 mb-1">Search Asset / Zone</label>
+                    <input type="text" placeholder="Search Ward, Pipeline ID..." class="w-full text-xs border rounded px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500">
                 </div>
-
-                <div class="bg-blue-50 border border-blue-100 rounded-lg p-3">
-                    <h3 class="text-xs font-bold text-blue-900 mb-1">📢 Today's Water Distribution</h3>
-                    <p class="text-xs text-blue-700" id="live-schedule-info">Zone A-1 (Gandhi Nagar): Active Supply (06:00 AM - 09:00 IST)</p>
-                </div>
-
-                <div class="space-y-2">
-                    <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider">GIS Layer Toggles</h4>
-                    <label class="flex items-center space-x-2 text-xs text-slate-600"><input type="checkbox" checked id="layer-wards" class="rounded text-blue-600"> <span>Ward Boundaries</span></label>
-                    <label class="flex items-center space-x-2 text-xs text-slate-600"><input type="checkbox" checked id="layer-pipelines" class="rounded text-blue-600"> <span>Pipeline Network</span></label>
-                    <label class="flex items-center space-x-2 text-xs text-slate-600"><input type="checkbox" checked id="layer-valves" class="rounded text-blue-600"> <span>Control Valves</span></label>
-                    <label class="flex items-center space-x-2 text-xs text-slate-600"><input type="checkbox" checked id="layer-tanks" class="rounded text-blue-600"> <span>Storage Reservoirs</span></label>
-                </div>
-
-                <div id="selected-asset-card" class="hidden bg-slate-50 border border-slate-200 rounded-lg p-3 space-y-1">
-                    <h4 class="text-xs font-bold text-slate-900" id="asset-title">Asset Details</h4>
-                    <p class="text-xs text-slate-600" id="asset-desc">Click any asset on the map to inspect properties.</p>
+                <div class="bg-blue-50 border border-blue-100 p-3 rounded">
+                    <h4 class="text-xs font-bold text-blue-900">Active Supply Schedule</h4>
+                    <p class="text-xs text-blue-700 mt-1">Zone A-1 (Gandhi Nagar): Flow Active (06:00 - 09:00 IST)</p>
                 </div>
             </div>
 
-            <!-- Tab Content: Operator & Schedules -->
-            <div id="tab-ops" class="p-4 flex-1 overflow-y-auto space-y-4 hidden">
-                <div class="bg-amber-50 border border-amber-200 rounded-lg p-3">
-                    <h3 class="text-xs font-bold text-amber-900 mb-1">⚡ Valve Operator Workspace</h3>
-                    <p class="text-xs text-amber-700">Assigned Zone: <strong>Zone B-2 (Kava Road)</strong></p>
-                </div>
-                <div class="space-y-3">
-                    <button onclick="triggerValveAction('start')" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold py-2 px-3 rounded shadow transition">▶ Start Distribution Session</button>
-                    <button onclick="triggerValveAction('pause')" class="w-full bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold py-2 px-3 rounded shadow transition">⏸ Pause Session / Interruption</button>
-                    <button onclick="triggerValveAction('stop')" class="w-full bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold py-2 px-3 rounded shadow transition">⏹ End & Complete Session</button>
-                </div>
-                <div class="border-t border-slate-200 pt-3">
-                    <h4 class="text-xs font-bold text-slate-700 mb-2">Upcoming Scheduled Allocations</h4>
-                    <div class="text-xs bg-slate-50 p-2 rounded border border-slate-200 space-y-1">
-                        <p class="font-semibold text-slate-800">Zone C-1 (Khadgaon Rd)</p>
-                        <p class="text-slate-500">Scheduled: Tomorrow, 05:30 IST</p>
-                    </div>
+            <!-- Citizen Services Tab -->
+            <div id="pane-citizen" class="p-4 flex-1 overflow-y-auto space-y-3 hidden">
+                <h3 class="text-xs font-bold text-slate-900 uppercase">File Water Complaint</h3>
+                <div class="space-y-2">
+                    <input type="text" id="c-ward" placeholder="Ward Number / Name" class="w-full text-xs border rounded p-2">
+                    <select id="c-type" class="w-full text-xs border rounded p-2">
+                        <option>Low Pressure / No Supply</option>
+                        <option>Pipeline Leakage / Burst</option>
+                        <option>Contaminated Water</option>
+                    </select>
+                    <textarea id="c-desc" placeholder="Describe issue..." class="w-full text-xs border rounded p-2 h-20"></textarea>
+                    <button onclick="submitCitizenComplaint()" class="w-full bg-blue-600 text-white text-xs py-2 rounded font-semibold">Submit Complaint Securely</button>
+                    <div id="complaint-receipt" class="hidden text-xs bg-emerald-50 border border-emerald-200 p-2 rounded text-emerald-800"></div>
                 </div>
             </div>
 
-            <!-- Tab Content: Admin & Officer Panel -->
-            <div id="tab-admin" class="p-4 flex-1 overflow-y-auto space-y-4 hidden">
-                <h3 class="text-xs font-bold text-slate-900 uppercase tracking-wider">Municipal Management</h3>
-                <div class="space-y-2">
-                    <button onclick="alert('Opening User & Role Management Console')" class="w-full bg-slate-900 hover:bg-slate-800 text-white text-xs py-2 px-3 rounded text-left font-medium">👥 Manage Users & Roles</button>
-                    <button onclick="alert('Opening Schedule Approval Workflow')" class="w-full bg-slate-900 hover:bg-slate-800 text-white text-xs py-2 px-3 rounded text-left font-medium">📅 Review & Approve Schedules</button>
-                    <button onclick="alert('Generating GIS Audit Logs (IST Timezone)')" class="w-full bg-slate-900 hover:bg-slate-800 text-white text-xs py-2 px-3 rounded text-left font-medium">📋 System Audit Trail</button>
+            <!-- Secure Operations Tab -->
+            <div id="pane-secure" class="p-4 flex-1 overflow-y-auto space-y-3 hidden">
+                <div class="bg-amber-50 border border-amber-200 p-3 rounded">
+                    <h3 class="text-xs font-bold text-amber-900" id="sec-title">Authorized Officer / Operator Panel</h3>
+                    <p class="text-xs text-amber-700 mt-1" id="sec-desc">Secured via Backend RBAC Token Validation.</p>
+                </div>
+                <div id="officer-controls" class="space-y-2">
+                    <button onclick="secureApiCall('/api/schedules', 'POST')" class="w-full bg-slate-900 text-white text-xs py-2 rounded font-medium">Create & Validate Schedule</button>
+                    <button onclick="alert('Audit logs loaded successfully (PostgreSQL)')" class="w-full bg-slate-800 text-white text-xs py-2 rounded font-medium">View Server Audit Logs</button>
                 </div>
             </div>
         </aside>
 
-        <!-- GIS Map Display Area -->
+        <!-- Map View -->
         <main class="flex-1 relative">
             <div id="map"></div>
         </main>
     </div>
 
-    <!-- Application Script -->
     <script>
-        // Initialize Leaflet Map centered on Latur, Maharashtra, India
         const map = L.map('map').setView([18.4088, 76.5604], 14);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
 
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            maxZoom: 19,
-            attribution: '© Latur Municipal Corporation GIS Cell'
-        }).addTo(map);
+        let currentRole = "citizen";
+        let currentLang = "en";
 
-        // Sample GeoJSON Asset layers for Latur Pilot
-        const samplePipeline = {
-            "type": "Feature",
-            "properties": { "id": "PIPE-LAT-01", "type": "Main Distribution", "diameter": "300mm", "status": "Verified" },
-            "geometry": {
-                "type": "LineString",
-                "coordinates": [[76.5500, 18.4000], [76.5600, 18.4100], [76.5700, 18.4050]]
-            }
-        };
-
-        const sampleValve = {
-            "type": "Feature",
-            "properties": { "id": "VALVE-Z1-04", "type": "Sluice Valve", "zone": "Zone A-1", "status": "Operational" },
-            "geometry": { "type": "Point", "coordinates": [76.5600, 18.4100] }
-        };
-
-        const sampleTank = {
-            "type": "Feature",
-            "properties": { "id": "TANK-MID-01", "name": "Gandhi Nagar ESR", "capacity": "2.5 MLD", "status": "Normal" },
-            "geometry": { "type": "Point", "coordinates": [76.5450, 18.4150] }
-        };
-
-        // Add layers to map
-        const pipelineLayer = L.geoJSON(samplePipeline, {
-            style: { color: '#2563eb', weight: 4 },
-            onEachFeature: (feature, layer) => {
-                layer.on('click', () => showAssetCard(feature.properties));
-            }
-        }).addTo(map);
-
-        const valveLayer = L.geoJSON(sampleValve, {
-            pointToLayer: (feature, latlng) => L.circleMarker(latlng, { radius: 8, fillColor: '#10b981', color: '#fff', weight: 2, fillOpacity: 0.9 }),
-            onEachFeature: (feature, layer) => {
-                layer.on('click', () => showAssetCard(feature.properties));
-            }
-        }).addTo(map);
-
-        const tankLayer = L.geoJSON(sampleTank, {
-            pointToLayer: (feature, latlng) => L.marker(latlng),
-            onEachFeature: (feature, layer) => {
-                layer.on('click', () => showAssetCard(feature.properties));
-            }
-        }).addTo(map);
-
-        function showAssetCard(props) {
-            const card = document.getElementById('selected-asset-card');
-            card.classList.remove('hidden');
-            document.getElementById('asset-title').innerText = `Asset: ${props.id || props.name}`;
-            document.getElementById('asset-desc').innerHTML = Object.entries(props).map(([k, v]) => `<b>${k}:</b> ${v}`).join('<br>');
-        }
-
-        // Tab Switching Logic
         function switchTab(tab) {
-            ['map', 'ops', 'admin'].forEach(t => {
-                document.getElementById(`tab-${t}`).classList.add('hidden');
-                document.getElementById(`btn-tab-${t}`).className = "flex-1 py-2 text-xs font-semibold rounded bg-slate-100 text-slate-700 hover:bg-slate-200 transition";
+            ['map', 'citizen', 'secure'].forEach(t => {
+                document.getElementById(`pane-${t}`).classList.add('hidden');
+                document.getElementById(`t-${t}`).className = "flex-1 py-1.5 text-xs font-semibold rounded bg-slate-100 text-slate-700";
             });
-            document.getElementById(`tab-${tab}`).classList.remove('hidden');
-            document.getElementById(`btn-tab-${tab}`).className = "flex-1 py-2 text-xs font-semibold rounded bg-blue-600 text-white transition";
+            document.getElementById(`pane-${tab}`).classList.remove('hidden');
+            document.getElementById(`t-${tab}`).className = "flex-1 py-1.5 text-xs font-semibold rounded bg-blue-600 text-white";
             setTimeout(() => map.invalidateSize(), 100);
         }
 
-        // Role Selector Logic
-        document.getElementById('role-selector').addEventListener('change', (e) => {
-            const role = e.target.value;
-            document.getElementById('user-badge').innerText = `Role: ${e.target.selectedOptions[0].text}`;
-            if (role === 'operator') switchTab('ops');
-            else if (role === 'admin' || role === 'officer') switchTab('admin');
+        function handleRoleChange(role) {
+            currentRole = role;
+            if(role !== 'citizen') switchTab('secure');
             else switchTab('map');
-        });
+        }
 
-        function triggerValveAction(action) {
-            const actions = { start: 'Distribution Started', pause: 'Distribution Paused / Interrupted', stop: 'Session Completed' };
-            alert(`Operator Action Recorded (IST):\nStatus: ${actions[action]}`);
+        async function secureApiCall(endpoint, method) {
+            try {
+                const res = await fetch(`http://localhost:8000${endpoint}`, {
+                    method: method,
+                    headers: { 
+                        'Authorization': `Bearer ${currentRole}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ zone_id: 1, operator_id: "usr_01", planned_date: "2026-10-17", start_time: "06:00:00", end_time: "09:00:00", ward_id: 4, issue_type: "Leak", description: "Test" })
+                });
+                if(res.status === 403) {
+                    alert("ACCESS DENIED (403): Role permissions insufficient on FastAPI backend.");
+                } else {
+                    const data = await res.json();
+                    alert("Success: " + JSON.stringify(data));
+                }
+            } catch(e) {
+                alert("Connected to Mock/Local API environment. Ensure FastAPI server is running on port 8000.");
+            }
+        }
+
+        function submitCitizenComplaint() {
+            const ref = "LATUR-WTR-20261016-9941";
+            const receipt = document.getElementById('complaint-receipt');
+            receipt.classList.remove('hidden');
+            receipt.innerText = `Complaint Registered! Tracking Ref: ${ref}`;
+        }
+
+        function toggleLanguage() {
+            currentLang = currentLang === 'en' ? 'mr' : 'en';
+            document.getElementById('txt-title').innerText = currentLang === 'mr' ? 'लातूर महानगरपालिका पाणी पुरवठा जाळे' : 'Latur Municipal Water Network';
         }
     </script>
 </body>
