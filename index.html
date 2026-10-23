@@ -418,14 +418,17 @@
 
         let geojsonLayer = null;
 
-        function loadGeoJSONData() {
-    fetch('Ward_Map.geojson')
+function loadGeoJSONData() {
+    // Replace with your actual Supabase Storage Public URL copied from Step 1
+    const supabaseGeoJSONUrl = 'https://tfbiobjijzcbpcnrtnh.supabase.co/storage/v1/object/public/gis-data/Ward_Map.geojson';
+
+    fetch(supabaseGeoJSONUrl)
         .then(res => res.json())
         .then(data => {
             extractedWards = [];
             data.features.forEach(f => {
                 const p = f.properties;
-                // Prioritize checking your exact 'Ward_No' field from the official layer
+                // Automatically extracts your official 'Ward_No' field
                 let wardName = p.Ward_No || p.ward || p.name || p.id;
                 if(wardName && !extractedWards.includes(wardName)) {
                     extractedWards.push(wardName);
@@ -438,7 +441,7 @@
             geojsonLayer = L.geoJSON(data, {
                 style: function(feature) {
                     const p = feature.properties;
-                    let strokeColor = '#0f172a'; // Black default
+                    let strokeColor = '#0f172a'; // Default border color
                     let wardName = p.Ward_No || p.ward || p.name;
                     if (feature.geometry.type === 'LineString' || feature.geometry.type === 'Polygon') {
                         if (activeWaterWard && String(wardName) === String(activeWaterWard)) {
@@ -459,14 +462,14 @@
                         }
                         const p = feature.properties;
                         document.getElementById('asset-details-box').innerHTML = `
-                            <b>Ward / Asset ID:</b> ${p.Ward_No || p.id || 'N/A'}<br>
+                            <b>Ward Number:</b> ${p.Ward_No || 'N/A'}<br>
                             <b>Name:</b> ${p.name || p.ward || 'N/A'}<br>
-                            <b>Type:</b> ${p.type || 'Standard Pipeline'}
+                            <b>Type:</b> ${p.type || 'Standard Ward Polygon'}
                         `;
                     });
                 }
             }).addTo(map);
-        }).catch(e => console.log("GeoJSON load note:", e));
+        }).catch(e => console.error("Error loading GeoJSON from Supabase Storage:", e));
 }
 
         function populateWardDropdowns() {
