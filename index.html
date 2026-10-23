@@ -11,6 +11,7 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <style>
         #map { height: calc(100vh - 64px); min-height: 550px; }
+        .leaflet-top.leaflet-right { z-index: 1000; }
     </style>
 </head>
 <body class="h-full bg-slate-100 text-slate-900 font-sans flex flex-col overflow-hidden">
@@ -24,26 +25,24 @@
                 <p class="text-xs text-slate-500">Secure Pilot Access Control (IST Timezone)</p>
             </div>
 
-            <!-- Login Type Tabs -->
             <div class="flex border-b border-slate-200 text-xs font-semibold">
                 <button onclick="switchAuthTab('citizen')" id="tab-auth-citizen" class="flex-1 pb-2 border-b-2 border-blue-600 text-blue-600 text-center">Citizen Login</button>
                 <button onclick="switchAuthTab('staff')" id="tab-auth-staff" class="flex-1 pb-2 border-b-2 border-transparent text-slate-500 text-center">Municipal Staff Login</button>
             </div>
 
-            <!-- Citizen Mobile Login Form -->
+            <!-- Citizen Login Form -->
             <div id="form-citizen" class="space-y-4">
                 <div>
-                    <label class="block text-xs font-medium text-slate-700 mb-1">Indian Mobile Number (10 Digits)</label>
+                    <label class="block text-xs font-medium text-slate-700 mb-1">Indian Mobile Number (Mandatory, 10 Digits)</label>
                     <div class="flex">
                         <span class="inline-flex items-center px-3 rounded-l-md border border-r-0 border-slate-300 bg-slate-50 text-slate-500 text-xs">+91</span>
                         <input type="tel" id="citizen-mobile" maxlength="10" placeholder="9876543210" class="flex-1 min-w-0 block w-full px-3 py-2 rounded-none rounded-r-md border border-slate-300 text-xs focus:ring-blue-500 focus:border-blue-500">
                     </div>
-                    <p class="text-[10px] text-slate-400 mt-1">Access: View public schedules, map pipeline network, & file complaints.</p>
                 </div>
                 <button onclick="loginAsCitizen()" class="w-full bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold py-2.5 rounded-lg shadow transition">Login as Citizen</button>
             </div>
 
-            <!-- Staff Login Form (Supabase / Role-based) -->
+            <!-- Staff Login Form -->
             <div id="form-staff" class="space-y-4 hidden">
                 <div>
                     <label class="block text-xs font-medium text-slate-700 mb-1">Select Municipal Role</label>
@@ -101,7 +100,7 @@
                     <div class="bg-blue-50 border border-blue-100 rounded-lg p-3">
                         <h3 class="text-xs font-bold text-blue-900 mb-1">🗺️ Map Symbology Legend</h3>
                         <ul class="text-[11px] text-blue-700 space-y-1 mt-1">
-                            <li>🟢 <strong class="text-emerald-700">Green:</strong> Active Water Distribution Flow (Ward 1 / Live Zone)</li>
+                            <li>🟢 <strong class="text-emerald-700">Green:</strong> Active Water Distribution Flow (Live Ward)</li>
                             <li>🟡 <strong class="text-amber-700">Yellow:</strong> Upcoming Scheduled Ward Pipeline</li>
                             <li>⚫ <strong class="text-slate-700">Black:</strong> Standby / Completed Network Pipelines</li>
                         </ul>
@@ -109,7 +108,7 @@
                     <div class="space-y-2">
                         <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wider">Asset Specs Inspector</h4>
                         <div id="asset-details-box" class="bg-slate-50 border border-slate-200 rounded-lg p-3 text-xs text-slate-600 space-y-1">
-                            <span class="italic text-slate-400">Click any pipeline, valve, or ESR tank on the map to inspect specifications.</span>
+                            <span class="italic text-slate-400">Click any asset on the map to inspect specifications.</span>
                         </div>
                     </div>
                 </div>
@@ -125,34 +124,63 @@
                 <!-- Tab 3: Complaints View & Submission -->
                 <div id="tab-complaints" class="p-4 flex-1 overflow-y-auto space-y-4 hidden">
                     <h3 class="text-xs font-bold text-slate-900 uppercase tracking-wider">File Water Supply Complaint</h3>
-                    <div class="space-y-2">
-                        <input type="text" id="comp-ward" placeholder="Ward Name / Locality (e.g. Gandhi Nagar)" class="w-full text-xs border border-slate-300 rounded p-2 focus:ring-1 focus:ring-blue-500">
-                        <select id="comp-type" class="w-full text-xs border border-slate-300 rounded p-2">
-                            <option>Low Water Pressure / No Supply</option>
-                            <option>Pipeline Leakage / Burst</option>
-                            <option>Contaminated Water / Quality Issue</option>
-                        </select>
-                        <textarea id="comp-desc" placeholder="Describe the issue..." class="w-full text-xs border border-slate-300 rounded p-2 h-20"></textarea>
+                    <div class="space-y-2.5">
+                        <div>
+                            <label class="block text-[11px] font-medium text-slate-700 mb-1">Mobile Number (Mandatory)</label>
+                            <input type="text" id="comp-mobile" readonly class="w-full text-xs border bg-slate-50 rounded p-2 text-slate-600 font-semibold">
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-medium text-slate-700 mb-1">Select Ward / Locality (Auto-fetched)</label>
+                            <select id="comp-ward-select" class="w-full text-xs border border-slate-300 rounded p-2 bg-white">
+                                <!-- Populated dynamically from GeoJSON wards -->
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-medium text-slate-700 mb-1">Complaint Type</label>
+                            <select id="comp-type" class="w-full text-xs border border-slate-300 rounded p-2 bg-white">
+                                <option>Low Water Pressure / No Supply</option>
+                                <option>Pipeline Leakage / Burst</option>
+                                <option>Contaminated Water / Quality Issue</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-medium text-slate-700 mb-1">Location Coordinates</label>
+                            <div class="flex space-x-2">
+                                <input type="text" id="comp-coords" placeholder="Lat, Lng" readonly class="flex-1 text-xs border rounded p-1.5 bg-slate-50">
+                                <button onclick="fetchLiveLocation()" class="bg-slate-800 text-white text-[10px] px-2.5 py-1.5 rounded font-medium">📍 Live GPS</button>
+                                <button onclick="enableMapPinSelection()" class="bg-blue-600 text-white text-[10px] px-2.5 py-1.5 rounded font-medium">🗺️ Pick Map</button>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-medium text-slate-700 mb-1">Description</label>
+                            <textarea id="comp-desc" placeholder="Describe the issue..." class="w-full text-xs border border-slate-300 rounded p-2 h-16"></textarea>
+                        </div>
                         <button onclick="submitComplaint()" class="w-full bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold py-2 rounded shadow transition">Submit Complaint</button>
                         <div id="comp-receipt" class="hidden text-xs bg-emerald-50 border border-emerald-200 p-2.5 rounded text-emerald-900 font-medium"></div>
                     </div>
 
                     <div class="border-t border-slate-200 pt-3 space-y-2">
-                        <h4 class="text-xs font-bold text-slate-900 uppercase tracking-wider">Tracked Complaints List</h4>
+                        <h4 class="text-xs font-bold text-slate-900 uppercase tracking-wider">Your Tracked Complaints</h4>
                         <div id="citizen-complaints-list" class="space-y-2 text-xs">
                             <!-- Populated via JS -->
                         </div>
                     </div>
                 </div>
 
-                <!-- Tab 4: Municipal Staff Management (Officers & Operators Only) -->
+                <!-- Tab 4: Municipal Staff Management -->
                 <div id="tab-management" class="p-4 flex-1 overflow-y-auto space-y-4 hidden">
                     <!-- Operator Controls -->
                     <div id="operator-controls-section" class="bg-amber-50 border border-amber-200 rounded-lg p-3 space-y-2 hidden">
                         <h3 class="text-xs font-bold text-amber-900 uppercase tracking-wider">⚡ Valve Operator Flow Controls</h3>
-                        <p class="text-[11px] text-amber-700">Triggering flow updates live map pipeline symbology to Green.</p>
-                        <button onclick="triggerWaterFlow('Ward 1')" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold py-2 rounded shadow transition">🟢 Start Water Flow for Ward 1</button>
-                        <button onclick="stopWaterFlow()" class="w-full bg-slate-800 hover:bg-slate-900 text-white text-xs font-semibold py-2 rounded shadow transition">⚫ End Distribution (Reset to Black)</button>
+                        <p class="text-[11px] text-amber-700">Triggering flow updates live map pipeline symbology.</p>
+                        <div>
+                            <label class="block text-[10px] font-semibold text-slate-700 mb-1">Select Ward to Flow:</label>
+                            <select id="operator-ward-select" class="w-full text-xs border rounded p-1.5 bg-white mb-2">
+                                <!-- Populated dynamically -->
+                            </select>
+                        </div>
+                        <button onclick="triggerWaterFlow()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold py-2 rounded shadow transition">🟢 Start Water Flow</button>
+                        <button onclick="stopWaterFlow()" class="w-full bg-slate-800 hover:bg-slate-900 text-white text-xs font-semibold py-2 rounded shadow transition">⚫ End Distribution (Reset)</button>
                     </div>
 
                     <!-- Officer Schedule Editing -->
@@ -177,18 +205,52 @@
                 </div>
             </aside>
 
-            <!-- GIS Interactive Map Area -->
+            <!-- GIS Interactive Map Area with Layer Control Button -->
             <main class="flex-1 relative">
                 <div id="map"></div>
+
+                <!-- Custom Layer & Basemap Control Widget -->
+                <div class="absolute top-3 right-3 z-[1000]">
+                    <div class="relative">
+                        <button onclick="toggleLayerMenu()" class="bg-white hover:bg-slate-50 text-slate-800 shadow-md border border-slate-300 font-bold text-xs px-3.5 py-2 rounded-lg flex items-center space-x-2 transition">
+                            <span>🗺️ Layers & Basemaps</span>
+                            <span class="text-[10px]">▼</span>
+                        </button>
+
+                        <div id="layer-menu-dropdown" class="hidden absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-2xl border border-slate-200 p-4 space-y-4 text-xs">
+                            <!-- Basemaps Selection -->
+                            <div>
+                                <h4 class="font-bold text-slate-900 mb-2 uppercase tracking-wider text-[10px]">Basemaps</h4>
+                                <div class="space-y-1.5" id="basemap-options">
+                                    <label class="flex items-center space-x-2 cursor-pointer"><input type="radio" name="basemap" value="osm" checked onchange="changeBasemap('osm')"> <span>OpenStreetMap (OSM)</span></label>
+                                    <label class="flex items-center space-x-2 cursor-pointer"><input type="radio" name="basemap" value="streets" onchange="changeBasemap('streets')"> <span>Google Maps (Streets)</span></label>
+                                    <label class="flex items-center space-x-2 cursor-pointer"><input type="radio" name="basemap" value="satellite" onchange="changeBasemap('satellite')"> <span>Google Satellite</span></label>
+                                    <label class="flex items-center space-x-2 cursor-pointer"><input type="radio" name="basemap" value="hybrid" onchange="changeBasemap('hybrid')"> <span>Google Hybrid</span></label>
+                                </div>
+                            </div>
+
+                            <!-- Repository Vector Layers -->
+                            <div class="border-t border-slate-200 pt-3">
+                                <h4 class="font-bold text-slate-900 mb-2 uppercase tracking-wider text-[10px]">Repository Layers</h4>
+                                <div class="space-y-1.5" id="repo-layers-list">
+                                    <label class="flex items-center space-x-2 cursor-pointer"><input type="checkbox" checked onchange="toggleRepoLayer('geojson', this.checked)"> <span>latur_water_assets.geojson</span></label>
+                                    <label class="flex items-center space-x-2 cursor-pointer"><input type="checkbox" checked onchange="toggleRepoLayer('pipelines', this.checked)"> <span>Pipelines Network</span></label>
+                                    <label class="flex items-center space-x-2 cursor-pointer"><input type="checkbox" checked onchange="toggleRepoLayer('valves', this.checked)"> <span>Control Valves & Tanks</span></label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </main>
         </div>
     </div>
 
     <!-- Application Script -->
     <script>
-        // --- APPLICATION STATE ---
         let currentUser = null;
-        let activeWaterWard = null; // null or "Ward 1"
+        let activeWaterWard = null;
+        let extractedWards = [];
+        let isPickingMapLocation = false;
 
         let schedules = [
             { ward: "Gandhi Nagar (Ward 01)", zone: "Zone A-1", time: "06:00 AM - 09:00 AM IST", status: "Published" },
@@ -197,11 +259,10 @@
         ];
 
         let complaints = [
-            { id: "LATUR-WTR-9941", ward: "Gandhi Nagar (Ward 01)", type: "Low Water Pressure", desc: "Pressure low on 2nd floor", status: "Submitted", remark: "Pending review" },
-            { id: "LATUR-WTR-8819", ward: "Khadgaon Road (Ward 02)", type: "Pipeline Leakage", desc: "Main branch pipe dripping", status: "In Progress", remark: "Assigned to field team" }
+            { id: "LATUR-WTR-9941", mobile: "+91 9876543210", ward: "Gandhi Nagar (Ward 01)", type: "Low Water Pressure", desc: "Pressure low on 2nd floor", status: "Submitted", remark: "Pending review", coords: "18.4088, 76.5604" }
         ];
 
-        // --- AUTHENTICATION LOGIC ---
+        // --- AUTHENTICATION & MOBILE VALIDATION ---
         function switchAuthTab(tab) {
             if(tab === 'citizen') {
                 document.getElementById('tab-auth-citizen').className = "flex-1 pb-2 border-b-2 border-blue-600 text-blue-600 text-center font-semibold";
@@ -252,6 +313,7 @@
             if (currentUser.role === 'citizen') {
                 badge.innerText = `Citizen: ${currentUser.identifier}`;
                 mgmtBtn.classList.add('hidden');
+                document.getElementById('comp-mobile').value = currentUser.identifier;
                 switchTab('map');
             } else if (currentUser.role === 'operator') {
                 badge.innerText = `Role: Valve Operator`;
@@ -273,27 +335,56 @@
             setTimeout(() => map.invalidateSize(), 200);
         }
 
-        // --- MAP INITIALIZATION & DYNAMIC SYMBOLOGY ---
+        // --- MAP INITIALIZATION & BASEMAPS ---
         const map = L.map('map').setView([18.4088, 76.5604], 14);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© Latur Municipal Corporation GIS Cell' }).addTo(map);
 
+        // Basemaps definition
+        const basemaps = {
+            osm: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' }),
+            streets: L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', { maxZoom: 20, attribution: '© Google Maps' }),
+            satellite: L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', { maxZoom: 20, attribution: '© Google Satellite' }),
+            hybrid: L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', { maxZoom: 20, attribution: '© Google Hybrid' })
+        };
+        basemaps.osm.addTo(map);
+
+        function changeBasemap(type) {
+            Object.values(basemaps.bm || basemaps).forEach(bm => { if(map.hasLayer(bm)) map.removeLayer(bm); });
+            basemaps[type].addTo(map);
+        }
+
+        function toggleLayerMenu() {
+            const menu = document.getElementById('layer-menu-dropdown');
+            menu.classList.toggle('hidden');
+        }
+
+        // --- FETCH WARD NUMBER LOGIC FROM latur_water_assets.geojson ---
         let geojsonLayer = null;
 
         function loadGeoJSONData() {
             fetch('latur_water_assets.geojson')
                 .then(res => res.json())
                 .then(data => {
+                    // Extract unique wards dynamically
+                    extractedWards = [];
+                    data.features.forEach(f => {
+                        const p = f.properties;
+                        let wardName = p.ward || p.name || p.id;
+                        if(wardName && !extractedWards.includes(wardName)) {
+                            extractedWards.push(wardName);
+                        }
+                    });
+
+                    // Populate dynamic ward dropdowns
+                    populateWardDropdowns();
+
                     if(geojsonLayer) map.removeLayer(geojsonLayer);
                     geojsonLayer = L.geoJSON(data, {
                         style: function(feature) {
                             const p = feature.properties;
-                            // Dynamic Symbology Logic:
-                            // If pipeline belongs to active water ward -> Green (#10b981)
-                            // If upcoming -> Yellow (#f59e0b)
-                            // Default / Ended -> Black (#0f172a)
                             let strokeColor = '#0f172a'; // Black default
-                            if (feature.geometry.type === 'LineString') {
-                                if (activeWaterWard && p.ward === activeWaterWard) {
+                            let wardName = p.ward || p.name;
+                            if (feature.geometry.type === 'LineString' || feature.geometry.type === 'Polygon') {
+                                if (activeWaterWard && wardName === activeWaterWard) {
                                     strokeColor = '#10b981'; // Green for active flow
                                 } else if (p.status === 'Upcoming') {
                                     strokeColor = '#f59e0b'; // Yellow for upcoming schedule
@@ -308,7 +399,14 @@
                             return L.circleMarker(latlng, { radius: 7, fillColor: '#3b82f6', color: '#ffffff', weight: 2, fillOpacity: 0.9 });
                         },
                         onEachFeature: function(feature, layer) {
-                            layer.on('click', () => {
+                            layer.on('click', (e) => {
+                                if (isPickingMapLocation) {
+                                    const latlng = e.latlng;
+                                    document.getElementById('comp-coords').value = `${latlng.lat.toFixed(4)}, ${latlng.lng.toFixed(4)}`;
+                                    isPickingMapLocation = false;
+                                    alert("Location captured from map successfully!");
+                                    return;
+                                }
                                 const p = feature.properties;
                                 document.getElementById('asset-details-box').innerHTML = `
                                     <b>Asset ID:</b> ${p.id || 'N/A'}<br>
@@ -319,24 +417,77 @@
                             });
                         }
                     }).addTo(map);
-                }).catch(e => console.log("Using fallback map rendering."));
+                }).catch(e => console.log("GeoJSON fallback initialized."));
         }
         loadGeoJSONData();
 
-        // Operator triggers water flow for Ward 1
-        function triggerWaterFlow(wardName) {
-            activeWaterWard = wardName;
-            loadGeoJSONData();
-            document.getElementById('live-alert-banner').classList.remove('hidden');
-            document.getElementById('alert-msg').innerText = `🟢 WATER FLOW STARTED for ${wardName}! Pipeline network symbology updated to GREEN.`;
+        function populateWardDropdowns() {
+            const compSelect = document.getElementById('comp-ward-select');
+            const opSelect = document.getElementById('operator-ward-select');
+            
+            const optionsHtml = extractedWards.map(w => `<option value="${w}">${w}</option>`).join('');
+            if(compSelect) compSelect.innerHTML = optionsHtml;
+            if(opSelect) opSelect.innerHTML = optionsHtml;
         }
 
-        // Operator stops flow (reverts to black)
+        function toggleRepoLayer(layerName, show) {
+            if(layerName === 'geojson' && geojsonLayer) {
+                if(show) geojsonLayer.addTo(map);
+                else map.removeLayer(geojsonLayer);
+            }
+        }
+
+        // --- OPERATOR FLOW CONTROLS ---
+        function triggerWaterFlow() {
+            const ward = document.getElementById('operator-ward-select').value;
+            activeWaterWard = ward;
+            loadGeoJSONData();
+            document.getElementById('live-alert-banner').classList.remove('hidden');
+            document.getElementById('alert-msg').innerText = `🟢 WATER FLOW STARTED for ${ward}! Pipeline symbology updated to GREEN.`;
+        }
+
         function stopWaterFlow() {
             activeWaterWard = null;
             loadGeoJSONData();
             document.getElementById('live-alert-banner').classList.remove('hidden');
-            document.getElementById('alert-msg').innerText = `⚫ Water distribution ended. Pipeline network symbology reset to BLACK standby.`;
+            document.getElementById('alert-msg').innerText = `⚫ Water distribution ended. Pipeline symbology reset to BLACK standby.`;
+        }
+
+        // --- COMPLAINTS GEOLOCATION & MAP PIN ---
+        function fetchLiveLocation() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(pos => {
+                    const lat = pos.coords.latitude.toFixed(4);
+                    const lng = pos.coords.longitude.toFixed(4);
+                    document.getElementById('comp-coords').value = `${lat}, ${lng}`;
+                    alert("Live location successfully fetched via GPS!");
+                }, () => {
+                    alert("Unable to retrieve your location. Please check browser permissions.");
+                });
+            } else {
+                alert("Geolocation is not supported by your browser.");
+            }
+        }
+
+        function enableMapPinSelection() {
+            isPickingMapLocation = true;
+            alert("Click anywhere on the map to select the complaint location coordinates.");
+        }
+
+        function submitComplaint() {
+            const mobile = document.getElementById('comp-mobile').value;
+            const ward = document.getElementById('comp-ward-select').value;
+            const type = document.getElementById('comp-type').value;
+            const coords = document.getElementById('comp-coords').value || '18.4088, 76.5604';
+            const desc = document.getElementById('comp-desc').value || 'No description';
+            const ref = `LATUR-WTR-${Math.floor(1000 + Math.random() * 9000)}`;
+
+            complaints.unshift({ id: ref, mobile: mobile, ward: ward, type: type, desc: desc, status: 'Submitted', remark: 'Received by Control Room', coords: coords });
+            renderComplaints();
+
+            const receipt = document.getElementById('comp-receipt');
+            receipt.classList.remove('hidden');
+            receipt.innerHTML = `✅ Complaint registered for <b>${ward}</b>!<br>Tracking Ref: <b>${ref}</b>`;
         }
 
         // --- RENDER SCHEDULES & COMPLAINTS ---
@@ -352,7 +503,6 @@
         }
 
         function renderComplaints() {
-            // Citizen view list
             const citizenList = document.getElementById('citizen-complaints-list');
             citizenList.innerHTML = complaints.map(c => `
                 <div class="bg-slate-50 border border-slate-200 rounded p-2 space-y-1">
@@ -362,12 +512,11 @@
                 </div>
             `).join('');
 
-            // Officer view list (Management tab)
             const officerList = document.getElementById('officer-complaints-list');
             if(officerList) {
                 officerList.innerHTML = complaints.map((c, idx) => `
                     <div class="bg-slate-50 border border-slate-200 rounded p-2.5 space-y-1.5">
-                        <div class="flex justify-between font-bold"><span>${c.ward}</span><span class="text-[10px] text-slate-500">${c.id}</span></div>
+                        <div class="flex justify-between font-bold"><span>${c.ward} (${c.mobile})</span><span class="text-[10px] text-slate-500">${c.id}</span></div>
                         <p class="text-slate-600 text-[11px]">${c.type}: ${c.desc}</p>
                         <div class="flex items-center space-x-2 pt-1">
                             <select onchange="updateComplaintStatus(${idx}, this.value)" class="text-[10px] border rounded p-1 bg-white">
@@ -383,27 +532,12 @@
             }
         }
 
-        function submitComplaint() {
-            const ward = document.getElementById('comp-ward').value || 'Gandhi Nagar (Ward 01)';
-            const type = document.getElementById('comp-type').value;
-            const desc = document.getElementById('comp-desc').value || 'No description';
-            const ref = `LATUR-WTR-${Math.floor(1000 + Math.random() * 9000)}`;
-
-            complaints.unshift({ id: ref, ward: ward, type: type, desc: desc, status: 'Submitted', remark: 'Received by Control Room' });
-            renderComplaints();
-
-            const receipt = document.getElementById('comp-receipt');
-            receipt.classList.remove('hidden');
-            receipt.innerHTML = `✅ Complaint registered! Ref: <b>${ref}</b>`;
-        }
-
-        // Officer actions
         function saveScheduleTiming() {
             const idx = document.getElementById('edit-schedule-idx').value;
             const newTime = document.getElementById('edit-schedule-timing').value;
             schedules[idx].time = newTime;
             renderSchedules();
-            alert("Schedule timing updated successfully across municipal records.");
+            alert("Schedule timing updated successfully.");
         }
 
         function updateComplaintStatus(idx, status) {
