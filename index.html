@@ -14,17 +14,13 @@
         .leaflet-top.leaflet-right { z-index: 1000; }
     </style>
     <!-- Supabase JS Client CDN -->
-    <!-- Supabase JS Client CDN -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
-<script>
-    // Global Supabase Client Initialization (Declared ONCE only)
-    if (typeof supabaseClient === 'undefined') {
-        var SUPABASE_URL = 'https://tfbiobjijzcbpcpnrtnh.supabase.co';
-        var SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRmYmlvYmppanpjYnBjcG5ydG5oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTIxNDAxMDQsImV4cCI6MjEwNzcxNjEwNH0.COzS4Wi1eBuF24OjjZaw9pppFEvp1I0kQKkZtWobDZM';
-        var supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    }
-</script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+        // Global Supabase Client Initialization (Declared ONCE)
+        const SUPABASE_URL = 'https://tfbiobjijzcbpcnrtnh.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRmYmlvYmppanpjYnBjcG5ydG5oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTIxNDAxMDQsImV4cCI6MjEwNzcxNjEwNH0.COzS4Wi1eBuF24OjjZaw9pppFEvp1I0kQKkZtWobDZM';
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    </script>
 </head>
 <body class="h-full bg-slate-100 text-slate-900 font-sans flex flex-col overflow-hidden">
 
@@ -123,7 +119,7 @@
                     <div class="space-y-2">
                         <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wider">Asset Specs Inspector</h4>
                         <div id="asset-details-box" class="bg-slate-50 border border-slate-200 rounded-lg p-3 text-xs text-slate-600 space-y-1">
-                            <span class="italic text-slate-400">Click any asset on the map to inspect specifications.</span>
+                            <span class="italic text-slate-400">Click any ward polygon on the map to inspect specifications.</span>
                         </div>
                     </div>
                 </div>
@@ -227,7 +223,7 @@
                             <div class="border-t border-slate-200 pt-3">
                                 <h4 class="font-bold text-slate-900 mb-2 uppercase tracking-wider text-[10px]">Repository Layers</h4>
                                 <div class="space-y-1.5" id="repo-layers-list">
-                                    <label class="flex items-center space-x-2 cursor-pointer"><input type="checkbox" checked onchange="toggleRepoLayer('geojson', this.checked)"> <span>latur_water_assets.geojson</span></label>
+                                    <label class="flex items-center space-x-2 cursor-pointer"><input type="checkbox" checked onchange="toggleRepoLayer('geojson', this.checked)"> <span>Ward_Map.geojson (Supabase)</span></label>
                                 </div>
                             </div>
                         </div>
@@ -243,15 +239,16 @@
         let activeWaterWard = null;
         let extractedWards = [];
         let isPickingMapLocation = false;
+        let geojsonLayer = null; // Declared ONCE globally
 
         let schedules = [
-            { ward: "Gandhi Nagar (Ward 01)", zone: "Zone A-1", time: "06:00 AM - 09:00 AM IST", status: "Published" },
-            { ward: "Khadgaon Road (Ward 02)", zone: "Zone B-2", time: "09:30 AM - 12:30 PM IST", status: "Upcoming" },
-            { ward: "Shivaji Nagar (Ward 03)", zone: "Zone C-1", time: "04:00 PM - 07:00 PM IST", status: "Upcoming" }
+            { ward: "Ward 01", zone: "Zone A-1", time: "06:00 AM - 09:00 AM IST", status: "Published" },
+            { ward: "Ward 02", zone: "Zone B-2", time: "09:30 AM - 12:30 PM IST", status: "Upcoming" },
+            { ward: "Ward 03", zone: "Zone C-1", time: "04:00 PM - 07:00 PM IST", status: "Upcoming" }
         ];
 
         let complaints = [
-            { id: "LATUR-WTR-9941", mobile: "+91 9876543210", ward: "Gandhi Nagar (Ward 01)", type: "Low Water Pressure", desc: "Pressure low on 2nd floor", status: "Submitted", remark: "Pending review", coords: "18.4088, 76.5604" }
+            { id: "LATUR-WTR-9941", mobile: "+91 9876543210", ward: "Ward 03", type: "Low Water Pressure", desc: "Pressure low on 2nd floor", status: "Submitted", remark: "Pending review", coords: "18.4088, 76.5604" }
         ];
 
         function switchAuthTab(tab) {
@@ -269,50 +266,48 @@
         }
 
         async function loginAsCitizen() {
-    try {
-        const mobile = document.getElementById('citizen-mobile').value.trim();
-        const mobileRegex = /^[6-9]\d{9}$/;
-        
-        if (!mobileRegex.test(mobile)) {
-            alert("Please enter a valid 10-digit Indian mobile number starting with 6, 7, 8, or 9.");
-            return;
-        }
+            try {
+                const mobile = document.getElementById('citizen-mobile').value.trim();
+                const mobileRegex = /^[6-9]\d{9}$/;
+                
+                if (!mobileRegex.test(mobile)) {
+                    alert("Please enter a valid 10-digit Indian mobile number starting with 6, 7, 8, or 9.");
+                    return;
+                }
 
-        // Query the dedicated public.citizens table
-        let { data, error } = await supabase
-            .from('citizens')
-            .select('*')
-            .eq('mobile_number', mobile)
-            .maybeSingle();
+                let { data, error } = await supabase
+                    .from('citizens')
+                    .select('*')
+                    .eq('mobile_number', mobile)
+                    .maybeSingle();
 
-        if (error) {
-            console.error("Supabase Error:", error);
-            alert("Database query error: " + error.message);
-            return;
-        }
+                if (error) {
+                    console.error("Supabase Error:", error);
+                    alert("Database query error: " + error.message);
+                    return;
+                }
 
-        // If citizen doesn't exist yet, automatically insert them into public.citizens
-        if (!data) {
-            const { data: insertData, error: insertError } = await supabase
-                .from('citizens')
-                .insert([{ mobile_number: mobile, full_name: `Citizen ${mobile}` }])
-                .select()
-                .single();
+                if (!data) {
+                    const { data: insertData, error: insertError } = await supabase
+                        .from('citizens')
+                        .insert([{ mobile_number: mobile, full_name: `Citizen ${mobile}` }])
+                        .select()
+                        .single();
 
-            if (insertError) {
-                alert("Error registering citizen: " + insertError.message);
-                return;
+                    if (insertError) {
+                        alert("Error registering citizen: " + insertError.message);
+                        return;
+                    }
+                    data = insertData;
+                }
+
+                currentUser = { role: 'citizen', identifier: `+91 ${mobile}`, ward: null };
+                initSession();
+            } catch (err) {
+                console.error("Exception in citizen login:", err);
+                alert("Citizen login failed. Check console for details.");
             }
-            data = insertData;
         }
-
-        currentUser = { role: 'citizen', identifier: `+91 ${mobile}`, ward: null };
-        initSession();
-    } catch (err) {
-        console.error("Exception in citizen login:", err);
-        alert("Citizen login failed. Check console for details.");
-    }
-}
 
         async function loginAsStaff() {
             try {
@@ -416,93 +411,71 @@
             document.getElementById('layer-menu-dropdown').classList.toggle('hidden');
         }
 
-        let geojsonLayer = null;
+        async function loadGeoJSONData() {
+            try {
+                const { data: urlData } = supabase.storage
+                    .from('gis-data')
+                    .getPublicUrl('Ward_Map.geojson');
 
-let geojsonLayer = null;
-
-async function loadGeoJSONData() {
-    try {
-        // 1. Get the public URL dynamically from Supabase Storage bucket ('gis-data')
-        const { data: urlData } = supabase.storage
-            .from('gis-data')
-            .getPublicUrl('Ward_Map.geojson');
-
-        const publicUrl = urlData.publicUrl;
-        console.log("Fetching GeoJSON from Supabase:", publicUrl);
-
-        // 2. Fetch the GeoJSON data from Supabase cloud
-        const res = await fetch(publicUrl);
-        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-        
-        const data = await res.json();
-
-        extractedWards = [];
-        data.features.forEach(f => {
-            const p = f.properties;
-            // Extracts your exact 'Ward_No' field from the GeoJSON
-            let wardName = p.Ward_No || p.ward || p.name || p.id;
-            if(wardName && !extractedWards.includes(String(wardName))) {
-                extractedWards.push(String(wardName));
-            }
-        });
-
-        // Sort ward numbers numerically for clean dropdown ordering
-        extractedWards.sort((a, b) => parseInt(a) - parseInt(b));
-        populateWardDropdowns();
-
-        // 3. Render polygons onto the Leaflet map
-        if(geojsonLayer) map.removeLayer(geojsonLayer);
-        
-        geojsonLayer = L.geoJSON(data, {
-            style: function(feature) {
-                const p = feature.properties;
-                let strokeColor = '#0f172a'; // Default dark boundary
-                let wardName = p.Ward_No || p.ward || p.name;
+                const publicUrl = urlData.publicUrl;
+                const res = await fetch(publicUrl);
+                if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
                 
-                if (activeWaterWard && String(wardName) === String(activeWaterWard)) {
-                    strokeColor = '#10b981'; // Green for active flow
-                } else if (p.status === 'Upcoming') {
-                    strokeColor = '#f59e0b'; // Yellow for upcoming schedule
-                }
-                
-                return { 
-                    color: strokeColor, 
-                    weight: 2, 
-                    fillColor: '#3b82f6', 
-                    fillOpacity: 0.15 
-                };
-            },
-            onEachFeature: function(feature, layer) {
-                layer.on('click', (e) => {
-                    if (isPickingMapLocation) {
-                        document.getElementById('comp-coords').value = `${e.latlng.lat.toFixed(4)}, ${e.latlng.lng.toFixed(4)}`;
-                        isPickingMapLocation = false;
-                        alert("Location captured from map!");
-                        return;
+                const data = await res.json();
+
+                extractedWards = [];
+                data.features.forEach(f => {
+                    const p = f.properties;
+                    let wardName = p.Ward_No ? `Ward ${String(p.Ward_No).padStart(2, '0')}` : (p.ward || p.name || p.id);
+                    if(wardName && !extractedWards.includes(wardName)) {
+                        extractedWards.push(wardName);
                     }
-                    const p = feature.properties;
-                    document.getElementById('asset-details-box').innerHTML = `
-                        <b>Ward Number:</b> ${p.Ward_No || 'N/A'}<br>
-                        <b>Area:</b> ${p.Area_Hect || 'N/A'}<br>
-                        <b>ID:</b> ${p.Id || 'N/A'}
-                    `;
                 });
+
+                extractedWards.sort();
+                populateWardDropdowns();
+
+                if(geojsonLayer) map.removeLayer(geojsonLayer);
+                
+                geojsonLayer = L.geoJSON(data, {
+                    style: function(feature) {
+                        const p = feature.properties;
+                        let strokeColor = '#0f172a';
+                        let wardName = p.Ward_No ? `Ward ${String(p.Ward_No).padStart(2, '0')}` : (p.ward || p.name);
+                        
+                        if (activeWaterWard && String(wardName) === String(activeWaterWard)) {
+                            strokeColor = '#10b981'; // Green for active flow
+                        } else if (p.status === 'Upcoming') {
+                            strokeColor = '#f59e0b';
+                        }
+                        return { color: strokeColor, weight: 2, fillColor: '#3b82f6', fillOpacity: 0.15 };
+                    },
+                    onEachFeature: function(feature, layer) {
+                        layer.on('click', (e) => {
+                            if (isPickingMapLocation) {
+                                document.getElementById('comp-coords').value = `${e.latlng.lat.toFixed(4)}, ${e.latlng.lng.toFixed(4)}`;
+                                isPickingMapLocation = false;
+                                alert("Location captured from map!");
+                                return;
+                            }
+                            const p = feature.properties;
+                            document.getElementById('asset-details-box').innerHTML = `
+                                <b>Ward Number:</b> ${p.Ward_No || 'N/A'}<br>
+                                <b>Area:</b> ${p.Area_Hect || 'N/A'}<br>
+                                <b>ID:</b> ${p.Id || 'N/A'}
+                            `;
+                        });
+                    }
+                }).addTo(map);
+
+                if (geojsonLayer.getBounds().isValid()) {
+                    map.fitBounds(geojsonLayer.getBounds(), { padding: [20, 20] });
+                }
+            } catch (e) {
+                console.error("Error loading GeoJSON from Supabase Storage:", e);
             }
-        }).addTo(map);
-
-        // Automatically zoom and fit map bounds to your Latur ward polygons
-        if (geojsonLayer.getBounds().isValid()) {
-            map.fitBounds(geojsonLayer.getBounds(), { padding: [20, 20] });
         }
-
-    } catch (e) {
-        console.error("Error loading GeoJSON from Supabase Storage:", e);
-        alert("Failed to load map layers from Supabase Storage. Check browser console (F12) for details.");
-    }
-}
-
-// Call function on page startup
-loadGeoJSONData();
+        loadGeoJSONData();
 
         function populateWardDropdowns() {
             const compSelect = document.getElementById('comp-ward-select');
