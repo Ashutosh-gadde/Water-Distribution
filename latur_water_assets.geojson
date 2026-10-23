@@ -1,0 +1,71 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "WARD-04",
+        "name": "Gandhi Nagar Ward",
+        "type": "Municipal Ward",
+        "status": "Verified"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [76.5500, 18.4000],
+            [76.5700, 18.4000],
+            [76.5700, 18.4200],
+            [76.5500, 18.4200],
+            [76.5500, 18.4000]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "TANK-01",
+        "name": "Gandhi Nagar ESR",
+        "capacity": "2.5 MLD",
+        "type": "Storage Tank",
+        "status": "Operational"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [76.5550, 18.4050]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "PIPE-01",
+        "name": "Main Feeder Line",
+        "diameter": "300mm",
+        "type": "Pipeline",
+        "status": "Verified"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [76.5500, 18.4000],
+          [76.5600, 18.4100],
+          [76.5700, 18.4050]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "VALVE-01",
+        "name": "Control Valve Z-1",
+        "type": "Sluice Valve",
+        "status": "Operational"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [76.5600, 18.4100]
+      }
+    }
+  ]
+}
