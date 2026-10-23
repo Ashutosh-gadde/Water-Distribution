@@ -15,6 +15,65 @@
   }
 </script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<script>
+    // 1. Initialize Supabase (Replace with your actual Supabase URL and Anon Key from your Supabase dashboard)
+    const SUPABASE_URL = 'https://your-project-id.supabase.co';
+    const SUPABASE_ANON_KEY = 'your-anon-public-key-here';
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    // 2. Map Initialization (Your existing Leaflet map)
+    const map = L.map('map').setView([18.4088, 76.5604], 14);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
+
+    // 3. Fetch Municipal Assets from Supabase Database (Replaces hardcoded demo data)
+    async function loadMunicipalAssets() {
+        const { data, error } = await supabase
+            .from('pipelines')
+            .select('*');
+
+        if (error) {
+            console.error('Error fetching pipeline data from Supabase:', error);
+            return;
+        }
+
+        // If data exists in Supabase, render them on the map
+        if (data) {
+            data.forEach(pipeline => {
+                if (pipeline.geom) {
+                    L.geoJSON(pipeline.geom).addTo(map);
+                }
+            });
+        }
+    }
+
+    // 4. Secure Citizen Complaint Form Submission
+    async function submitComplaintToSupabase(wardId, issueType, description) {
+        const trackingRef = `LATUR-WTR-${Date.now()}`;
+        
+        const { data, error } = await supabase
+            .from('complaints')
+            .insert([
+                { 
+                    tracking_ref: trackingRef, 
+                    ward_id: wardId, 
+                    issue_type: issueType, 
+                    description: description, 
+                    status: 'Submitted' 
+                }
+            ]);
+
+        if (error) {
+            alert('Failed to submit complaint. Please check your network.');
+            console.error(error);
+        } else {
+            alert(`Complaint registered successfully! Reference Number: ${trackingRef}`);
+        }
+    }
+
+    // Call asset loading when page opens
+    loadMunicipalAssets();
+</script>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 </head>
 <body>
