@@ -418,59 +418,76 @@
 
         let geojsonLayer = null;
 
-function loadGeoJSONData() {
-    // Replace with your actual Supabase Storage Public URL copied from Step 1
-    const supabaseGeoJSONUrl = 'https://tfbiobjijzcbpcpnrtnh.supabase.co/storage/v1/object/public/gis-data/Ward_Map.geojson';
+async function loadGeoJSONData() {
+    try {
+        // Dynamically get the public URL from your Supabase Storage bucket ('gis-data')
+        const { data: urlData } = supabase.storage
+            .from('gis-data')
+            .getPublicUrl('Ward_Map.geojson');
 
-    fetch(supabaseGeoJSONUrl)
-        .then(res => res.json())
-        .then(data => {
-            extractedWards = [];
-            data.features.forEach(f => {
-                const p = f.properties;
-                // Automatically extracts your official 'Ward_No' field
-                let wardName = p.Ward_No || p.ward || p.name || p.id;
-                if(wardName && !extractedWards.includes(wardName)) {
-                    extractedWards.push(wardName);
-                }
-            });
+        const publicUrl = urlData.publicUrl;
+        console.log("Fetching GeoJSON from:", publicUrl);
 
-            populateWardDropdowns();
+        const res = await fetch(publicUrl);
+        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+        
+        const data = await res.json();
 
-            if(geojsonLayer) map.removeLayer(geojsonLayer);
-            geojsonLayer = L.geoJSON(data, {
-                style: function(feature) {
-                    const p = feature.properties;
-                    let strokeColor = '#0f172a'; // Default border color
-                    let wardName = p.Ward_No || p.ward || p.name;
-                    if (feature.geometry.type === 'LineString' || feature.geometry.type === 'Polygon') {
-                        if (activeWaterWard && String(wardName) === String(activeWaterWard)) {
-                            strokeColor = '#10b981'; // Green for active flow
-                        } else if (p.status === 'Upcoming') {
-                            strokeColor = '#f59e0b'; // Yellow for upcoming schedule
-                        }
+        extractedWards = [];
+        data.features.forEach(f => {
+            const p = f.properties;
+            let wardName = p.Ward_No || p.ward || p.name || p.id;
+            if(wardName && !extractedWards.includes(wardName)) {
+                extractedWards.push(wardName);
+            }
+        });
+
+        populateWardDropdowns();
+
+        if(geojsonLayer) map.removeLayer(geojsonLayer);
+        geojsonLayer = L.geoJSON(data, {
+            style: function(feature) {
+                const p = feature.properties;
+                let strokeColor = '#0f172a'; // Default black border
+                let wardName = p.Ward_No || p.ward || p.name;
+                if (feature.geometry.type === 'LineString' || feature.geometry.type === 'Polygon') {
+                    if (activeWaterWard && String(wardName) === String(activeWaterWard)) {
+                        strokeColor = '#10b981'; // Green for active flow
+                    } else if (p.status === 'Upcoming') {
+                        strokeColor = '#f59e0b'; // Yellow for upcoming schedule
                     }
-                    return { color: strokeColor, weight: feature.geometry.type === 'LineString' ? 5 : 2, fillOpacity: 0.15 };
-                },
-                onEachFeature: function(feature, layer) {
-                    layer.on('click', (e) => {
-                        if (isPickingMapLocation) {
-                            document.getElementById('comp-coords').value = `${e.latlng.lat.toFixed(4)}, ${e.latlng.lng.toFixed(4)}`;
-                            isPickingMapLocation = false;
-                            alert("Location captured from map!");
-                            return;
-                        }
-                        const p = feature.properties;
-                        document.getElementById('asset-details-box').innerHTML = `
-                            <b>Ward Number:</b> ${p.Ward_No || 'N/A'}<br>
-                            <b>Name:</b> ${p.name || p.ward || 'N/A'}<br>
-                            <b>Type:</b> ${p.type || 'Standard Ward Polygon'}
-                        `;
-                    });
                 }
-            }).addTo(map);
-        }).catch(e => console.error("Error loading GeoJSON from Supabase Storage:", e));
+                return { color: strokeColor, weight: feature.geometry.type === 'LineString' ? 5 : 2, fillOpacity: 0.15 };
+            },
+            onEachFeature: function(feature, layer) {
+                layer.on('click', (e) => {
+                    if (isPickingMapLocation) {
+                        document.getElementById('comp-coords').value = `${e.latlng.lat.toFixed(4)}, ${e.latlng.lng.toFixed(4)}`;
+                        isPickingMapLocation = false;
+                        alert("Location captured from map!");
+                        return;
+                    }
+                    const p = feature.properties;
+                    document.getElementById('asset-details-box').innerHTML = `
+                        <b>Ward Number:</b> ${p.Ward_No || 'N/A'}<br>
+                        <b>Name:</b> ${p.name || p.ward || 'N/A'}<br>
+                        <b>Type:</b> ${p.type || 'Standard Ward Polygon'}
+                    `;
+                });
+            }
+        }).addTo(map);
+
+        // Auto-fit map bounds to your Latur ward polygons
+        map.fitBounds(geojsonLayer.getBounds());
+
+    } catch (e) {
+        console.error("Error loading GeoJSON from Supabase Storage:", e);
+        alert("Failed to load map layers from Supabase Storage. Check console for details.");
+    }
 }
+
+// Call loadGeoJSONData on startup
+loadGeoJSONData();
 
         function populateWardDropdowns() {
             const compSelect = document.getElementById('comp-ward-select');
