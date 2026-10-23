@@ -418,16 +418,19 @@
 
         let geojsonLayer = null;
 
+let geojsonLayer = null;
+
 async function loadGeoJSONData() {
     try {
-        // Dynamically get the public URL from your Supabase Storage bucket ('gis-data')
+        // 1. Get the public URL dynamically from Supabase Storage bucket ('gis-data')
         const { data: urlData } = supabase.storage
             .from('gis-data')
             .getPublicUrl('Ward_Map.geojson');
 
         const publicUrl = urlData.publicUrl;
-        console.log("Fetching GeoJSON from:", publicUrl);
+        console.log("Fetching GeoJSON from Supabase:", publicUrl);
 
+        // 2. Fetch the GeoJSON data from Supabase cloud
         const res = await fetch(publicUrl);
         if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
         
@@ -436,28 +439,38 @@ async function loadGeoJSONData() {
         extractedWards = [];
         data.features.forEach(f => {
             const p = f.properties;
+            // Extracts your exact 'Ward_No' field from the GeoJSON
             let wardName = p.Ward_No || p.ward || p.name || p.id;
-            if(wardName && !extractedWards.includes(wardName)) {
-                extractedWards.push(wardName);
+            if(wardName && !extractedWards.includes(String(wardName))) {
+                extractedWards.push(String(wardName));
             }
         });
 
+        // Sort ward numbers numerically for clean dropdown ordering
+        extractedWards.sort((a, b) => parseInt(a) - parseInt(b));
         populateWardDropdowns();
 
+        // 3. Render polygons onto the Leaflet map
         if(geojsonLayer) map.removeLayer(geojsonLayer);
+        
         geojsonLayer = L.geoJSON(data, {
             style: function(feature) {
                 const p = feature.properties;
-                let strokeColor = '#0f172a'; // Default black border
+                let strokeColor = '#0f172a'; // Default dark boundary
                 let wardName = p.Ward_No || p.ward || p.name;
-                if (feature.geometry.type === 'LineString' || feature.geometry.type === 'Polygon') {
-                    if (activeWaterWard && String(wardName) === String(activeWaterWard)) {
-                        strokeColor = '#10b981'; // Green for active flow
-                    } else if (p.status === 'Upcoming') {
-                        strokeColor = '#f59e0b'; // Yellow for upcoming schedule
-                    }
+                
+                if (activeWaterWard && String(wardName) === String(activeWaterWard)) {
+                    strokeColor = '#10b981'; // Green for active flow
+                } else if (p.status === 'Upcoming') {
+                    strokeColor = '#f59e0b'; // Yellow for upcoming schedule
                 }
-                return { color: strokeColor, weight: feature.geometry.type === 'LineString' ? 5 : 2, fillOpacity: 0.15 };
+                
+                return { 
+                    color: strokeColor, 
+                    weight: 2, 
+                    fillColor: '#3b82f6', 
+                    fillOpacity: 0.15 
+                };
             },
             onEachFeature: function(feature, layer) {
                 layer.on('click', (e) => {
@@ -470,23 +483,25 @@ async function loadGeoJSONData() {
                     const p = feature.properties;
                     document.getElementById('asset-details-box').innerHTML = `
                         <b>Ward Number:</b> ${p.Ward_No || 'N/A'}<br>
-                        <b>Name:</b> ${p.name || p.ward || 'N/A'}<br>
-                        <b>Type:</b> ${p.type || 'Standard Ward Polygon'}
+                        <b>Area:</b> ${p.Area_Hect || 'N/A'}<br>
+                        <b>ID:</b> ${p.Id || 'N/A'}
                     `;
                 });
             }
         }).addTo(map);
 
-        // Auto-fit map bounds to your Latur ward polygons
-        map.fitBounds(geojsonLayer.getBounds());
+        // Automatically zoom and fit map bounds to your Latur ward polygons
+        if (geojsonLayer.getBounds().isValid()) {
+            map.fitBounds(geojsonLayer.getBounds(), { padding: [20, 20] });
+        }
 
     } catch (e) {
         console.error("Error loading GeoJSON from Supabase Storage:", e);
-        alert("Failed to load map layers from Supabase Storage. Check console for details.");
+        alert("Failed to load map layers from Supabase Storage. Check browser console (F12) for details.");
     }
 }
 
-// Call loadGeoJSONData on startup
+// Call function on page startup
 loadGeoJSONData();
 
         function populateWardDropdowns() {
