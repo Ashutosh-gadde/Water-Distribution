@@ -304,24 +304,67 @@
             initSession();
         }
 
-        function loginAsStaff() {
-            const usernameInput = document.getElementById('staff-username').value.trim();
-            const passwordInput = document.getElementById('staff-password').value.trim();
+        async function loginAsStaff() {
+    const usernameInput = document.getElementById('staff-username').value.trim();
+    const passwordInput = document.getElementById('staff-password').value.trim();
 
-            const matchedStaff = staffLibrary.find(s => s.username === usernameInput && s.pass === passwordInput);
+    if (!usernameInput || !passwordInput) {
+        alert("Please enter both username/email and password.");
+        return;
+    }
+    async function loginAsCitizen() {
+    const mobile = document.getElementById('citizen-mobile').value.trim();
+    const mobileRegex = /^[6-9]\d{9}$/;
+    
+    if (!mobileRegex.test(mobile)) {
+        alert("Please enter a valid 10-digit Indian mobile number.");
+        return;
+    }
 
-            if (!matchedStaff) {
-                alert("Authentication Failed: Invalid username or password.");
-                return;
-            }
+    // Check if citizen already exists in Supabase table
+    let { data, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('mobile_number', mobile)
+        .single();
 
-            currentUser = { 
-                role: matchedStaff.role, 
-                identifier: matchedStaff.name, 
-                ward: matchedStaff.ward 
-            };
-            initSession();
-        }
+    // If citizen doesn't exist yet, automatically insert them into Supabase
+    if (!data) {
+        const dummyEmail = `${mobile}@citizen.latur.local`;
+        const insertRes = await supabase
+            .from('users')
+            .insert([{ email: dummyEmail, mobile_number: mobile, full_name: `Citizen ${mobile}`, role: 'citizen' }])
+            .select()
+            .single();
+        data = insertRes.data;
+    }
+
+    currentUser = { role: 'citizen', identifier: `+91 ${mobile}`, ward: null };
+    initSession();
+}
+    // Query Supabase public.users table where email matches and password matches
+    const { data, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('email', usernameInput)
+        .eq('password', passwordInput)
+        .single();
+
+    if (error || !data) {
+        alert("Authentication Failed: Invalid username or password.");
+        console.error("Supabase Error:", error);
+        return;
+    }
+
+    // Set active user session based on live database response
+    currentUser = { 
+        role: data.role, 
+        identifier: data.full_name, 
+        ward: data.ward_id ? `Ward ${String(data.ward_id).padStart(2, '0')}` : 'All Wards' 
+    };
+    
+    initSession();
+}
 
         function logout() {
             currentUser = null;
