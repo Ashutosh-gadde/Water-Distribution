@@ -22,7 +22,7 @@
             <div class="text-center space-y-1">
                 <div class="inline-block bg-blue-600 text-white font-bold text-sm px-3 py-1.5 rounded-lg mb-1">💧 LMC GIS Portal</div>
                 <h2 class="text-lg font-bold text-slate-900">Latur Municipal Water Network</h2>
-                <p class="text-xs text-slate-500">Secure Pilot Access Control (IST Timezone)</p>
+                <p class="text-xs text-slate-500">Secure Role-Based Access Control (IST)</p>
             </div>
 
             <div class="flex border-b border-slate-200 text-xs font-semibold">
@@ -38,25 +38,29 @@
                         <span class="inline-flex items-center px-3 rounded-l-md border border-r-0 border-slate-300 bg-slate-50 text-slate-500 text-xs">+91</span>
                         <input type="tel" id="citizen-mobile" maxlength="10" placeholder="9876543210" class="flex-1 min-w-0 block w-full px-3 py-2 rounded-none rounded-r-md border border-slate-300 text-xs focus:ring-blue-500 focus:border-blue-500">
                     </div>
+                    <p class="text-[10px] text-slate-400 mt-1">Access: View public schedules, map pipeline network, & file complaints.</p>
                 </div>
                 <button onclick="loginAsCitizen()" class="w-full bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold py-2.5 rounded-lg shadow transition">Login as Citizen</button>
             </div>
 
-            <!-- Staff Login Form -->
+            <!-- Staff Library Login Form -->
             <div id="form-staff" class="space-y-4 hidden">
                 <div>
-                    <label class="block text-xs font-medium text-slate-700 mb-1">Select Municipal Role</label>
-                    <select id="staff-role" class="w-full text-xs border border-slate-300 rounded-md p-2 bg-white">
-                        <option value="operator">Valve Operator (Field Operations)</option>
-                        <option value="officer">Water Supply Officer (Schedule & Complaint Manager)</option>
-                        <option value="admin">Super Administrator</option>
-                    </select>
+                    <label class="block text-xs font-medium text-slate-700 mb-1">Staff Username / ID</label>
+                    <input type="text" id="staff-username" placeholder="e.g. officer, operator_w1, admin" class="w-full text-xs border border-slate-300 rounded-md p-2 bg-white">
                 </div>
                 <div>
-                    <label class="block text-xs font-medium text-slate-700 mb-1">Staff Passkey / Supabase Token</label>
-                    <input type="password" id="staff-pass" value="latur2026" class="w-full text-xs border border-slate-300 rounded-md p-2">
+                    <label class="block text-xs font-medium text-slate-700 mb-1">Password</label>
+                    <input type="password" id="staff-password" placeholder="Enter staff password" class="w-full text-xs border border-slate-300 rounded-md p-2 bg-white">
                 </div>
-                <button onclick="loginAsStaff()" class="w-full bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold py-2.5 rounded-lg shadow transition">Authenticate Staff Session</button>
+                <div class="text-[11px] bg-slate-50 p-2.5 rounded border border-slate-200 text-slate-600 space-y-0.5">
+                    <span class="font-bold block text-slate-700">Demo Library Credentials:</span>
+                    <div>• Admin: <code class="bg-slate-200 px-1 rounded">admin</code> / <code class="bg-slate-200 px-1 rounded">admin123</code></div>
+                    <div>• Officer: <code class="bg-slate-200 px-1 rounded">officer</code> / <code class="bg-slate-200 px-1 rounded">officer123</code></div>
+                    <div>• Operator Ward 1: <code class="bg-slate-200 px-1 rounded">operator_w1</code> / <code class="bg-slate-200 px-1 rounded">op123</code></div>
+                    <div>• Operator Ward 2: <code class="bg-slate-200 px-1 rounded">operator_w2</code> / <code class="bg-slate-200 px-1 rounded">op123</code></div>
+                </div>
+                <button onclick="loginAsStaff()" class="w-full bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold py-2.5 rounded-lg shadow transition">Verify & Authenticate Staff</button>
             </div>
         </div>
     </div>
@@ -126,11 +130,11 @@
                     <h3 class="text-xs font-bold text-slate-900 uppercase tracking-wider">File Water Supply Complaint</h3>
                     <div class="space-y-2.5">
                         <div>
-                            <label class="block text-[11px] font-medium text-slate-700 mb-1">Mobile Number (Mandatory)</label>
+                            <label class="block text-[11px] font-medium text-slate-700 mb-1">Mobile Number (Mandatory, Verified)</label>
                             <input type="text" id="comp-mobile" readonly class="w-full text-xs border bg-slate-50 rounded p-2 text-slate-600 font-semibold">
                         </div>
                         <div>
-                            <label class="block text-[11px] font-medium text-slate-700 mb-1">Select Ward / Locality (Auto-fetched)</label>
+                            <label class="block text-[11px] font-medium text-slate-700 mb-1">Select Ward / Locality</label>
                             <select id="comp-ward-select" class="w-full text-xs border border-slate-300 rounded p-2 bg-white">
                                 <!-- Populated dynamically from GeoJSON wards -->
                             </select>
@@ -169,21 +173,15 @@
 
                 <!-- Tab 4: Municipal Staff Management -->
                 <div id="tab-management" class="p-4 flex-1 overflow-y-auto space-y-4 hidden">
-                    <!-- Operator Controls -->
+                    <!-- Operator Controls (Restricted to Assigned Ward) -->
                     <div id="operator-controls-section" class="bg-amber-50 border border-amber-200 rounded-lg p-3 space-y-2 hidden">
                         <h3 class="text-xs font-bold text-amber-900 uppercase tracking-wider">⚡ Valve Operator Flow Controls</h3>
-                        <p class="text-[11px] text-amber-700">Triggering flow updates live map pipeline symbology.</p>
-                        <div>
-                            <label class="block text-[10px] font-semibold text-slate-700 mb-1">Select Ward to Flow:</label>
-                            <select id="operator-ward-select" class="w-full text-xs border rounded p-1.5 bg-white mb-2">
-                                <!-- Populated dynamically -->
-                            </select>
-                        </div>
-                        <button onclick="triggerWaterFlow()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold py-2 rounded shadow transition">🟢 Start Water Flow</button>
+                        <p class="text-[11px] text-amber-700" id="operator-ward-label">Assigned Ward: Loading...</p>
+                        <button onclick="triggerAssignedWaterFlow()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold py-2 rounded shadow transition">🟢 Start Water Flow for Assigned Ward</button>
                         <button onclick="stopWaterFlow()" class="w-full bg-slate-800 hover:bg-slate-900 text-white text-xs font-semibold py-2 rounded shadow transition">⚫ End Distribution (Reset)</button>
                     </div>
 
-                    <!-- Officer Schedule Editing -->
+                    <!-- Officer Schedule Editing (All Wards Access) -->
                     <div id="officer-schedule-section" class="bg-slate-50 border border-slate-200 rounded-lg p-3 space-y-2 hidden">
                         <h3 class="text-xs font-bold text-slate-900 uppercase tracking-wider">📅 Edit Distribution Schedule (Officer Only)</h3>
                         <select id="edit-schedule-idx" class="w-full text-xs border rounded p-1.5 bg-white">
@@ -247,6 +245,14 @@
 
     <!-- Application Script -->
     <script>
+        // --- STAFF CREDENTIAL LIBRARY ---
+        const staffLibrary = [
+            { username: "admin", pass: "admin123", role: "admin", name: "Super Administrator", ward: "All Wards" },
+            { username: "officer", pass: "officer123", role: "officer", name: "Water Supply Officer", ward: "All Wards" },
+            { username: "operator_w1", pass: "op123", role: "operator", name: "Operator (Gandhi Nagar)", ward: "Gandhi Nagar (Ward 01)" },
+            { username: "operator_w2", pass: "op123", role: "operator", name: "Operator (Khadgaon Rd)", ward: "Khadgaon Road (Ward 02)" }
+        ];
+
         let currentUser = null;
         let activeWaterWard = null;
         let extractedWards = [];
@@ -262,7 +268,7 @@
             { id: "LATUR-WTR-9941", mobile: "+91 9876543210", ward: "Gandhi Nagar (Ward 01)", type: "Low Water Pressure", desc: "Pressure low on 2nd floor", status: "Submitted", remark: "Pending review", coords: "18.4088, 76.5604" }
         ];
 
-        // --- AUTHENTICATION & MOBILE VALIDATION ---
+        // --- AUTHENTICATION & LOGIN LOGIC ---
         function switchAuthTab(tab) {
             if(tab === 'citizen') {
                 document.getElementById('tab-auth-citizen').className = "flex-1 pb-2 border-b-2 border-blue-600 text-blue-600 text-center font-semibold";
@@ -284,13 +290,26 @@
                 alert("Please enter a valid 10-digit Indian mobile number starting with 6, 7, 8, or 9.");
                 return;
             }
-            currentUser = { role: 'citizen', identifier: `+91 ${mobile}` };
+            currentUser = { role: 'citizen', identifier: `+91 ${mobile}`, ward: null };
             initSession();
         }
 
         function loginAsStaff() {
-            const role = document.getElementById('staff-role').value;
-            currentUser = { role: role, identifier: role.toUpperCase() };
+            const usernameInput = document.getElementById('staff-username').value.trim();
+            const passwordInput = document.getElementById('staff-password').value.trim();
+
+            const matchedStaff = staffLibrary.find(s => s.username === usernameInput && s.pass === passwordInput);
+
+            if (!matchedStaff) {
+                alert("Authentication Failed: Invalid username or password.");
+                return;
+            }
+
+            currentUser = { 
+                role: matchedStaff.role, 
+                identifier: matchedStaff.name, 
+                ward: matchedStaff.ward 
+            };
             initSession();
         }
 
@@ -316,14 +335,15 @@
                 document.getElementById('comp-mobile').value = currentUser.identifier;
                 switchTab('map');
             } else if (currentUser.role === 'operator') {
-                badge.innerText = `Role: Valve Operator`;
+                badge.innerText = `Operator: ${currentUser.identifier}`;
                 mgmtBtn.classList.remove('hidden');
                 opSec.classList.remove('hidden');
                 offSchSec.classList.add('hidden');
                 offCompSec.classList.add('hidden');
+                document.getElementById('operator-ward-label').innerHTML = `Assigned Ward: <strong>${currentUser.ward}</strong>`;
                 switchTab('management');
             } else if (currentUser.role === 'officer' || currentUser.role === 'admin') {
-                badge.innerText = currentUser.role === 'admin' ? `Role: Super Admin` : `Role: Water Supply Officer`;
+                badge.innerText = currentUser.role === 'admin' ? `Super Admin` : `Water Supply Officer`;
                 mgmtBtn.classList.remove('hidden');
                 opSec.classList.add('hidden');
                 offSchSec.classList.remove('hidden');
@@ -338,7 +358,6 @@
         // --- MAP INITIALIZATION & BASEMAPS ---
         const map = L.map('map').setView([18.4088, 76.5604], 14);
 
-        // Basemaps definition
         const basemaps = {
             osm: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' }),
             streets: L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', { maxZoom: 20, attribution: '© Google Maps' }),
@@ -348,7 +367,7 @@
         basemaps.osm.addTo(map);
 
         function changeBasemap(type) {
-            Object.values(basemaps.bm || basemaps).forEach(bm => { if(map.hasLayer(bm)) map.removeLayer(bm); });
+            Object.values(basemaps).forEach(bm => { if(map.hasLayer(bm)) map.removeLayer(bm); });
             basemaps[type].addTo(map);
         }
 
@@ -364,7 +383,6 @@
             fetch('latur_water_assets.geojson')
                 .then(res => res.json())
                 .then(data => {
-                    // Extract unique wards dynamically
                     extractedWards = [];
                     data.features.forEach(f => {
                         const p = f.properties;
@@ -374,7 +392,6 @@
                         }
                     });
 
-                    // Populate dynamic ward dropdowns
                     populateWardDropdowns();
 
                     if(geojsonLayer) map.removeLayer(geojsonLayer);
@@ -423,11 +440,8 @@
 
         function populateWardDropdowns() {
             const compSelect = document.getElementById('comp-ward-select');
-            const opSelect = document.getElementById('operator-ward-select');
-            
             const optionsHtml = extractedWards.map(w => `<option value="${w}">${w}</option>`).join('');
             if(compSelect) compSelect.innerHTML = optionsHtml;
-            if(opSelect) opSelect.innerHTML = optionsHtml;
         }
 
         function toggleRepoLayer(layerName, show) {
@@ -437,20 +451,20 @@
             }
         }
 
-        // --- OPERATOR FLOW CONTROLS ---
-        function triggerWaterFlow() {
-            const ward = document.getElementById('operator-ward-select').value;
-            activeWaterWard = ward;
+        // --- OPERATOR WARD FLOW CONTROLS ---
+        function triggerAssignedWaterFlow() {
+            if(!currentUser || currentUser.role !== 'operator') return;
+            activeWaterWard = currentUser.ward;
             loadGeoJSONData();
             document.getElementById('live-alert-banner').classList.remove('hidden');
-            document.getElementById('alert-msg').innerText = `🟢 WATER FLOW STARTED for ${ward}! Pipeline symbology updated to GREEN.`;
+            document.getElementById('alert-msg').innerText = `🟢 WATER FLOW STARTED for assigned ward: ${currentUser.ward}! Pipeline symbology updated to GREEN.`;
         }
 
         function stopWaterFlow() {
             activeWaterWard = null;
             loadGeoJSONData();
             document.getElementById('live-alert-banner').classList.remove('hidden');
-            document.getElementById('alert-msg').innerText = `⚫ Water distribution ended. Pipeline symbology reset to BLACK standby.`;
+            document.getElementById('alert-msg').innerText = `⚫ Water distribution ended. Pipeline network symbology reset to BLACK standby.`;
         }
 
         // --- COMPLAINTS GEOLOCATION & MAP PIN ---
