@@ -13,6 +13,16 @@
         #map { height: calc(100vh - 64px); min-height: 550px; }
         .leaflet-top.leaflet-right { z-index: 1000; }
     </style>
+    <!-- Supabase JS Client CDN -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<script>
+    // Initialize Supabase Client (Replace with your actual URL and Anon Key)
+    const SUPABASE_URL = 'https://tfbiobjijzcbpcnrtnh.supabase.co';
+    const SUPABASE_ANON_KEY = 'sb_publishable_-g72yQ4kZiLmaqtop0jpPg_3izQtM2U';
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+</script>
+    
 </head>
 <body class="h-full bg-slate-100 text-slate-900 font-sans flex flex-col overflow-hidden">
 
