@@ -419,41 +419,55 @@
         let geojsonLayer = null;
 
         function loadGeoJSONData() {
-            fetch('latur_water_assets.geojson')
-                .then(res => res.json())
-                .then(data => {
-                    extractedWards = [];
-                    data.features.forEach(f => {
-                        let wardName = f.properties.ward || f.properties.name || f.properties.id;
-                        if(wardName && !extractedWards.includes(wardName)) extractedWards.push(wardName);
-                    });
-                    populateWardDropdowns();
+    fetch('Ward_Map.geojson')
+        .then(res => res.json())
+        .then(data => {
+            extractedWards = [];
+            data.features.forEach(f => {
+                const p = f.properties;
+                // Prioritize checking your exact 'Ward_No' field from the official layer
+                let wardName = p.Ward_No || p.ward || p.name || p.id;
+                if(wardName && !extractedWards.includes(wardName)) {
+                    extractedWards.push(wardName);
+                }
+            });
 
-                    if(geojsonLayer) map.removeLayer(geojsonLayer);
-                    geojsonLayer = L.geoJSON(data, {
-                        style: function(feature) {
-                            let strokeColor = '#0f172a';
-                            let wardName = feature.properties.ward || feature.properties.name;
-                            if (activeWaterWard && wardName === activeWaterWard) strokeColor = '#10b981';
-                            else if (feature.properties.status === 'Upcoming') strokeColor = '#f59e0b';
-                            return { color: strokeColor, weight: feature.geometry.type === 'LineString' ? 5 : 2, fillOpacity: 0.15 };
-                        },
-                        onEachFeature: function(feature, layer) {
-                            layer.on('click', (e) => {
-                                if (isPickingMapLocation) {
-                                    document.getElementById('comp-coords').value = `${e.latlng.lat.toFixed(4)}, ${e.latlng.lng.toFixed(4)}`;
-                                    isPickingMapLocation = false;
-                                    alert("Location captured from map!");
-                                    return;
-                                }
-                                const p = feature.properties;
-                                document.getElementById('asset-details-box').innerHTML = `<b>ID:</b> ${p.id || 'N/A'}<br><b>Name:</b> ${p.name || p.ward || 'N/A'}`;
-                            });
+            populateWardDropdowns();
+
+            if(geojsonLayer) map.removeLayer(geojsonLayer);
+            geojsonLayer = L.geoJSON(data, {
+                style: function(feature) {
+                    const p = feature.properties;
+                    let strokeColor = '#0f172a'; // Black default
+                    let wardName = p.Ward_No || p.ward || p.name;
+                    if (feature.geometry.type === 'LineString' || feature.geometry.type === 'Polygon') {
+                        if (activeWaterWard && String(wardName) === String(activeWaterWard)) {
+                            strokeColor = '#10b981'; // Green for active flow
+                        } else if (p.status === 'Upcoming') {
+                            strokeColor = '#f59e0b'; // Yellow for upcoming schedule
                         }
-                    }).addTo(map);
-                }).catch(e => console.log("GeoJSON fallback."));
-        }
-        loadGeoJSONData();
+                    }
+                    return { color: strokeColor, weight: feature.geometry.type === 'LineString' ? 5 : 2, fillOpacity: 0.15 };
+                },
+                onEachFeature: function(feature, layer) {
+                    layer.on('click', (e) => {
+                        if (isPickingMapLocation) {
+                            document.getElementById('comp-coords').value = `${e.latlng.lat.toFixed(4)}, ${e.latlng.lng.toFixed(4)}`;
+                            isPickingMapLocation = false;
+                            alert("Location captured from map!");
+                            return;
+                        }
+                        const p = feature.properties;
+                        document.getElementById('asset-details-box').innerHTML = `
+                            <b>Ward / Asset ID:</b> ${p.Ward_No || p.id || 'N/A'}<br>
+                            <b>Name:</b> ${p.name || p.ward || 'N/A'}<br>
+                            <b>Type:</b> ${p.type || 'Standard Pipeline'}
+                        `;
+                    });
+                }
+            }).addTo(map);
+        }).catch(e => console.log("GeoJSON load note:", e));
+}
 
         function populateWardDropdowns() {
             const compSelect = document.getElementById('comp-ward-select');
