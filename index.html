@@ -20,12 +20,7 @@
         // Initialize Supabase Client
         const SUPABASE_URL = 'https://tfbiobjijzcbpcnrtnh.supabase.co';
         const SUPABASE_ANON_KEY = 'sb_publishable_-g72yQ4kZiLmaqtop0jpPg_3izQtM2U';
-        let supabase = null;
-        try {
-            supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-        } catch (e) {
-            console.error("Supabase Init Error:", e);
-        }
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     </script>
 </head>
 <body class="h-full bg-slate-100 text-slate-900 font-sans flex flex-col overflow-hidden">
@@ -47,7 +42,7 @@
             <!-- Citizen Login Form -->
             <div id="form-citizen" class="space-y-4">
                 <div>
-                    <label class="block text-xs font-medium text-slate-700 mb-1">Mobile Number</label>
+                    <label class="block text-xs font-medium text-slate-700 mb-1">Indian Mobile Number (Mandatory, 10 Digits)</label>
                     <div class="flex">
                         <span class="inline-flex items-center px-3 rounded-l-md border border-r-0 border-slate-300 bg-slate-50 text-slate-500 text-xs">+91</span>
                         <input type="tel" id="citizen-mobile" maxlength="10" placeholder="9876543210" class="flex-1 min-w-0 block w-full px-3 py-2 rounded-none rounded-r-md border border-slate-300 text-xs focus:ring-blue-500 focus:border-blue-500">
@@ -61,7 +56,7 @@
             <div id="form-staff" class="space-y-4 hidden">
                 <div>
                     <label class="block text-xs font-medium text-slate-700 mb-1">Staff Username / Email ID</label>
-                    <input type="text" id="staff-username" placeholder="e.g. officer@latur.gov.in, operator_w1@latur.gov.in" class="w-full text-xs border border-slate-300 rounded-md p-2 bg-white">
+                    <input type="text" id="staff-username" placeholder="e.g. admin@latur.gov.in" class="w-full text-xs border border-slate-300 rounded-md p-2 bg-white">
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-slate-700 mb-1">Password</label>
@@ -69,6 +64,9 @@
                 </div>
                 <div class="text-[11px] bg-slate-50 p-2.5 rounded border border-slate-200 text-slate-600 space-y-0.5">
                     <span class="font-bold block text-slate-700">Database Credentials Reference:</span>
+                    <div>• Admin: <code class="bg-slate-200 px-1 rounded">admin@latur.gov.in</code> / <code class="bg-slate-200 px-1 rounded">admin123</code></div>
+                    <div>• Officer: <code class="bg-slate-200 px-1 rounded">officer@latur.gov.in</code> / <code class="bg-slate-200 px-1 rounded">officer123</code></div>
+                    <div>• Operator W1: <code class="bg-slate-200 px-1 rounded">operator_w1@latur.gov.in</code> / <code class="bg-slate-200 px-1 rounded">op123</code></div>
                 </div>
                 <button onclick="loginAsStaff()" class="w-full bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold py-2.5 rounded-lg shadow transition">Verify & Authenticate Staff</button>
             </div>
@@ -130,9 +128,7 @@
                 <!-- Tab 2: Public Schedules View -->
                 <div id="tab-schedules" class="p-4 flex-1 overflow-y-auto space-y-3 hidden">
                     <h3 class="text-xs font-bold text-slate-900 uppercase tracking-wider">Ward Water Distribution Schedules</h3>
-                    <div id="public-schedules-container" class="space-y-2">
-                        <!-- Populated via JS -->
-                    </div>
+                    <div id="public-schedules-container" class="space-y-2"></div>
                 </div>
 
                 <!-- Tab 3: Complaints View & Submission -->
@@ -145,9 +141,7 @@
                         </div>
                         <div>
                             <label class="block text-[11px] font-medium text-slate-700 mb-1">Select Ward / Locality</label>
-                            <select id="comp-ward-select" class="w-full text-xs border border-slate-300 rounded p-2 bg-white">
-                                <!-- Populated dynamically from GeoJSON wards -->
-                            </select>
+                            <select id="comp-ward-select" class="w-full text-xs border border-slate-300 rounded p-2 bg-white"></select>
                         </div>
                         <div>
                             <label class="block text-[11px] font-medium text-slate-700 mb-1">Complaint Type</label>
@@ -175,15 +169,12 @@
 
                     <div class="border-t border-slate-200 pt-3 space-y-2">
                         <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wider">Your Tracked Complaints</h4>
-                        <div id="citizen-complaints-list" class="space-y-2 text-xs">
-                            <!-- Populated via JS -->
-                        </div>
+                        <div id="citizen-complaints-list" class="space-y-2 text-xs"></div>
                     </div>
                 </div>
 
                 <!-- Tab 4: Municipal Staff Management -->
                 <div id="tab-management" class="p-4 flex-1 overflow-y-auto space-y-4 hidden">
-                    <!-- Operator Controls (Restricted to Assigned Ward) -->
                     <div id="operator-controls-section" class="bg-amber-50 border border-amber-200 rounded-lg p-3 space-y-2 hidden">
                         <h3 class="text-xs font-bold text-amber-900 uppercase tracking-wider">⚡ Valve Operator Flow Controls</h3>
                         <p class="text-[11px] text-amber-700" id="operator-ward-label">Assigned Ward: Loading...</p>
@@ -191,7 +182,6 @@
                         <button onclick="stopWaterFlow()" class="w-full bg-slate-800 hover:bg-slate-900 text-white text-xs font-semibold py-2 rounded shadow transition">⚫ End Distribution (Reset)</button>
                     </div>
 
-                    <!-- Officer Schedule Editing (All Wards Access) -->
                     <div id="officer-schedule-section" class="bg-slate-50 border border-slate-200 rounded-lg p-3 space-y-2 hidden">
                         <h3 class="text-xs font-bold text-slate-900 uppercase tracking-wider">📅 Edit Distribution Schedule (Officer Only)</h3>
                         <select id="edit-schedule-idx" class="w-full text-xs border rounded p-1.5 bg-white">
@@ -203,12 +193,9 @@
                         <button onclick="saveScheduleTiming()" class="w-full bg-slate-900 hover:bg-slate-800 text-white text-xs py-1.5 rounded font-medium">Update Schedule Timing</button>
                     </div>
 
-                    <!-- Officer Complaint Management -->
                     <div id="officer-complaint-section" class="border-t border-slate-200 pt-3 space-y-2 hidden">
                         <h3 class="text-xs font-bold text-slate-900 uppercase tracking-wider">📋 Manage Citizen Complaints (Officer Only)</h3>
-                        <div id="officer-complaints-list" class="space-y-2 text-xs">
-                            <!-- Populated via JS -->
-                        </div>
+                        <div id="officer-complaints-list" class="space-y-2 text-xs"></div>
                     </div>
                 </div>
             </aside>
@@ -217,7 +204,6 @@
             <main class="flex-1 relative">
                 <div id="map"></div>
 
-                <!-- Custom Layer & Basemap Control Widget -->
                 <div class="absolute top-3 right-3 z-[1000]">
                     <div class="relative">
                         <button onclick="toggleLayerMenu()" class="bg-white hover:bg-slate-50 text-slate-800 shadow-md border border-slate-300 font-bold text-xs px-3.5 py-2 rounded-lg flex items-center space-x-2 transition">
@@ -226,7 +212,6 @@
                         </button>
 
                         <div id="layer-menu-dropdown" class="hidden absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-2xl border border-slate-200 p-4 space-y-4 text-xs">
-                            <!-- Basemaps Selection -->
                             <div>
                                 <h4 class="font-bold text-slate-900 mb-2 uppercase tracking-wider text-[10px]">Basemaps</h4>
                                 <div class="space-y-1.5" id="basemap-options">
@@ -236,14 +221,10 @@
                                     <label class="flex items-center space-x-2 cursor-pointer"><input type="radio" name="basemap" value="hybrid" onchange="changeBasemap('hybrid')"> <span>Google Hybrid</span></label>
                                 </div>
                             </div>
-
-                            <!-- Repository Vector Layers -->
                             <div class="border-t border-slate-200 pt-3">
                                 <h4 class="font-bold text-slate-900 mb-2 uppercase tracking-wider text-[10px]">Repository Layers</h4>
                                 <div class="space-y-1.5" id="repo-layers-list">
                                     <label class="flex items-center space-x-2 cursor-pointer"><input type="checkbox" checked onchange="toggleRepoLayer('geojson', this.checked)"> <span>latur_water_assets.geojson</span></label>
-                                    <label class="flex items-center space-x-2 cursor-pointer"><input type="checkbox" checked onchange="toggleRepoLayer('pipelines', this.checked)"> <span>Pipelines Network</span></label>
-                                    <label class="flex items-center space-x-2 cursor-pointer"><input type="checkbox" checked onchange="toggleRepoLayer('valves', this.checked)"> <span>Control Valves & Tanks</span></label>
                                 </div>
                             </div>
                         </div>
@@ -285,83 +266,88 @@
         }
 
         async function loginAsCitizen() {
-            const mobile = document.getElementById('citizen-mobile').value.trim();
-            const mobileRegex = /^[6-9]\d{9}$/;
-            
-            if (!mobileRegex.test(mobile)) {
-                alert("Please enter a valid 10-digit Indian mobile number.");
-                return;
-            }
-
             try {
+                const mobile = document.getElementById('citizen-mobile').value.trim();
+                const mobileRegex = /^[6-9]\d{9}$/;
+                
+                if (!mobileRegex.test(mobile)) {
+                    alert("Please enter a valid 10-digit Indian mobile number starting with 6, 7, 8, or 9.");
+                    return;
+                }
+
                 let { data, error } = await supabase
                     .from('users')
                     .select('*')
-                    .eq('mobile_number', mobile);
+                    .eq('mobile_number', mobile)
+                    .maybeSingle();
 
                 if (error) {
                     console.error("Supabase Error:", error);
+                    alert("Database query error: " + error.message);
+                    return;
                 }
 
-                let userRecord = (data && data.length > 0) ? data[0] : null;
-
-                if (!userRecord) {
+                if (!data) {
                     const dummyEmail = `${mobile}@citizen.latur.local`;
                     const { data: insertData, error: insertError } = await supabase
                         .from('users')
                         .insert([{ email: dummyEmail, mobile_number: mobile, full_name: `Citizen ${mobile}`, role: 'citizen' }])
-                        .select();
-                    
-                    if (insertData && insertData.length > 0) {
-                        userRecord = insertData[0];
+                        .select()
+                        .single();
+
+                    if (insertError) {
+                        alert("Error registering citizen: " + insertError.message);
+                        return;
                     }
+                    data = insertData;
                 }
 
                 currentUser = { role: 'citizen', identifier: `+91 ${mobile}`, ward: null };
                 initSession();
             } catch (err) {
-                console.warn("Direct DB fallback activated:", err);
-                currentUser = { role: 'citizen', identifier: `+91 ${mobile}`, ward: null };
-                initSession();
+                console.error("Exception in citizen login:", err);
+                alert("Login failed due to unexpected error. Check console.");
             }
         }
 
         async function loginAsStaff() {
-            const usernameInput = document.getElementById('staff-username').value.trim();
-            const passwordInput = document.getElementById('staff-password').value.trim();
-
-            if (!usernameInput || !passwordInput) {
-                alert("Please enter both username/email and password.");
-                return;
-            }
-
             try {
+                const usernameInput = document.getElementById('staff-username').value.trim();
+                const passwordInput = document.getElementById('staff-password').value.trim();
+
+                if (!usernameInput || !passwordInput) {
+                    alert("Please enter both username/email and password.");
+                    return;
+                }
+
                 const { data, error } = await supabase
                     .from('users')
                     .select('*')
                     .eq('email', usernameInput)
-                    .eq('password', passwordInput);
+                    .eq('password', passwordInput)
+                    .maybeSingle();
 
                 if (error) {
-                    alert("Supabase API Error: " + error.message);
+                    console.error("Supabase Error:", error);
+                    alert("Database connection error: " + error.message);
                     return;
                 }
 
-                if (!data || data.length === 0) {
+                if (!data) {
                     alert("Authentication Failed: Invalid username or password.");
                     return;
                 }
 
-                const userRecord = data[0];
                 currentUser = { 
-                    role: userRecord.role, 
-                    identifier: userRecord.full_name, 
-                    ward: userRecord.ward_id ? `Ward ${String(userRecord.ward_id).padStart(2, '0')}` : 'All Wards' 
+                    role: data.role, 
+                    identifier: data.full_name, 
+                    ward: data.ward_id ? `Ward ${String(data.ward_id).padStart(2, '0')}` : 'All Wards' 
                 };
                 
                 initSession();
             } catch (err) {
-                alert("Connection Exception: " + err.message);
+                console.error("Exception in staff login:", err);
+                alert("Staff login failed. Check console for details.");
             }
         }
 
@@ -382,3 +368,171 @@
             const offCompSec = document.getElementById('officer-complaint-section');
 
             if (currentUser.role === 'citizen') {
+                badge.innerText = `Citizen: ${currentUser.identifier}`;
+                mgmtBtn.classList.add('hidden');
+                document.getElementById('comp-mobile').value = currentUser.identifier;
+                switchTab('map');
+            } else if (currentUser.role === 'valve_operator') {
+                badge.innerText = `Operator: ${currentUser.identifier}`;
+                mgmtBtn.classList.remove('hidden');
+                opSec.classList.remove('hidden');
+                offSchSec.classList.add('hidden');
+                offCompSec.classList.add('hidden');
+                document.getElementById('operator-ward-label').innerHTML = `Assigned Ward: <strong>${currentUser.ward}</strong>`;
+                switchTab('management');
+            } else {
+                badge.innerText = currentUser.role === 'super_admin' ? `Super Admin` : `Water Supply Officer`;
+                mgmtBtn.classList.remove('hidden');
+                opSec.classList.add('hidden');
+                offSchSec.classList.remove('hidden');
+                offCompSec.classList.remove('hidden');
+                switchTab('management');
+            }
+            renderSchedules();
+            renderComplaints();
+            setTimeout(() => map.invalidateSize(), 200);
+        }
+
+        const map = L.map('map').setView([18.4088, 76.5604], 14);
+
+        const basemaps = {
+            osm: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' }),
+            streets: L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', { maxZoom: 20, attribution: '© Google Maps' }),
+            satellite: L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', { maxZoom: 20, attribution: '© Google Satellite' }),
+            hybrid: L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', { maxZoom: 20, attribution: '© Google Hybrid' })
+        };
+        basemaps.osm.addTo(map);
+
+        function changeBasemap(type) {
+            Object.values(basemaps).forEach(bm => { if(map.hasLayer(bm)) map.removeLayer(bm); });
+            basemaps[type].addTo(map);
+        }
+
+        function toggleLayerMenu() {
+            document.getElementById('layer-menu-dropdown').classList.toggle('hidden');
+        }
+
+        let geojsonLayer = null;
+
+        function loadGeoJSONData() {
+            fetch('latur_water_assets.geojson')
+                .then(res => res.json())
+                .then(data => {
+                    extractedWards = [];
+                    data.features.forEach(f => {
+                        let wardName = f.properties.ward || f.properties.name || f.properties.id;
+                        if(wardName && !extractedWards.includes(wardName)) extractedWards.push(wardName);
+                    });
+                    populateWardDropdowns();
+
+                    if(geojsonLayer) map.removeLayer(geojsonLayer);
+                    geojsonLayer = L.geoJSON(data, {
+                        style: function(feature) {
+                            let strokeColor = '#0f172a';
+                            let wardName = feature.properties.ward || feature.properties.name;
+                            if (activeWaterWard && wardName === activeWaterWard) strokeColor = '#10b981';
+                            else if (feature.properties.status === 'Upcoming') strokeColor = '#f59e0b';
+                            return { color: strokeColor, weight: feature.geometry.type === 'LineString' ? 5 : 2, fillOpacity: 0.15 };
+                        },
+                        onEachFeature: function(feature, layer) {
+                            layer.on('click', (e) => {
+                                if (isPickingMapLocation) {
+                                    document.getElementById('comp-coords').value = `${e.latlng.lat.toFixed(4)}, ${e.latlng.lng.toFixed(4)}`;
+                                    isPickingMapLocation = false;
+                                    alert("Location captured from map!");
+                                    return;
+                                }
+                                const p = feature.properties;
+                                document.getElementById('asset-details-box').innerHTML = `<b>ID:</b> ${p.id || 'N/A'}<br><b>Name:</b> ${p.name || p.ward || 'N/A'}`;
+                            });
+                        }
+                    }).addTo(map);
+                }).catch(e => console.log("GeoJSON fallback."));
+        }
+        loadGeoJSONData();
+
+        function populateWardDropdowns() {
+            const compSelect = document.getElementById('comp-ward-select');
+            if(compSelect) compSelect.innerHTML = extractedWards.map(w => `<option value="${w}">${w}</option>`).join('');
+        }
+
+        function toggleRepoLayer(layerName, show) {
+            if(layerName === 'geojson' && geojsonLayer) {
+                if(show) geojsonLayer.addTo(map);
+                else map.removeLayer(geojsonLayer);
+            }
+        }
+
+        function triggerAssignedWaterFlow() {
+            if(!currentUser || currentUser.role !== 'valve_operator') return;
+            activeWaterWard = currentUser.ward;
+            loadGeoJSONData();
+            document.getElementById('live-alert-banner').classList.remove('hidden');
+            document.getElementById('alert-msg').innerText = `🟢 WATER FLOW STARTED for ${currentUser.ward}!`;
+        }
+
+        function stopWaterFlow() {
+            activeWaterWard = null;
+            loadGeoJSONData();
+            document.getElementById('live-alert-banner').classList.remove('hidden');
+            document.getElementById('alert-msg').innerText = `⚫ Water distribution ended. Reset to standby.`;
+        }
+
+        function fetchLiveLocation() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(pos => {
+                    document.getElementById('comp-coords').value = `${pos.coords.latitude.toFixed(4)}, ${pos.coords.longitude.toFixed(4)}`;
+                    alert("GPS location fetched!");
+                }, () => alert("Permission denied or unavailable."));
+            }
+        }
+
+        function enableMapPinSelection() {
+            isPickingMapLocation = true;
+            alert("Click anywhere on the map to pin location.");
+        }
+
+        function submitComplaint() {
+            const mobile = document.getElementById('comp-mobile').value;
+            const ward = document.getElementById('comp-ward-select').value;
+            const type = document.getElementById('comp-type').value;
+            const coords = document.getElementById('comp-coords').value || '18.4088, 76.5604';
+            const desc = document.getElementById('comp-desc').value || 'No description';
+            const ref = `LATUR-WTR-${Math.floor(1000 + Math.random() * 9000)}`;
+
+            complaints.unshift({ id: ref, mobile, ward, type, desc, status: 'Submitted', remark: 'Control Room Received', coords });
+            renderComplaints();
+            document.getElementById('comp-receipt').classList.remove('hidden');
+            document.getElementById('comp-receipt').innerHTML = `✅ Registered! Ref: <b>${ref}</b>`;
+        }
+
+        function renderSchedules() {
+            document.getElementById('public-schedules-container').innerHTML = schedules.map(s => `
+                <div class="bg-slate-50 border border-slate-200 rounded-lg p-3 text-xs space-y-1">
+                    <div class="font-bold text-slate-900">${s.ward} (${s.zone})</div>
+                    <div class="text-slate-600">Timing: ${s.time}</div>
+                </div>
+            `).join('');
+        }
+
+        function renderComplaints() {
+            document.getElementById('citizen-complaints-list').innerHTML = complaints.map(c => `
+                <div class="bg-slate-50 border border-slate-200 rounded p-2 space-y-1">
+                    <div class="flex justify-between font-bold"><span>${c.ward}</span><span class="text-[10px] text-slate-500">${c.id}</span></div>
+                    <p class="text-slate-600 text-[11px]">${c.type}: "${c.desc}"</p>
+                </div>
+            `).join('');
+        }
+
+        function switchTab(tab) {
+            ['map', 'schedules', 'complaints', 'management'].forEach(t => {
+                document.getElementById(`tab-${t}`).classList.add('hidden');
+                document.getElementById(`btn-tab-${t}`).className = "flex-1 py-1.5 text-xs font-semibold rounded bg-white text-slate-700 border border-slate-200 hover:bg-slate-100 transition";
+            });
+            document.getElementById(`tab-${tab}`).classList.remove('hidden');
+            document.getElementById(`btn-tab-${tab}`).className = "flex-1 py-1.5 text-xs font-semibold rounded bg-blue-600 text-white transition shadow-xs";
+            setTimeout(() => map.invalidateSize(), 150);
+        }
+    </script>
+</body>
+</html>
