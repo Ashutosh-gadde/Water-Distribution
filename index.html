@@ -14,14 +14,17 @@
         .leaflet-top.leaflet-right { z-index: 1000; }
     </style>
     <!-- Supabase JS Client CDN -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- Supabase JS Client CDN -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-    <script>
-        // Initialize Supabase Client
-        const SUPABASE_URL = 'https://tfbiobjijzcbpcnrtnh.supabase.co';
-        const SUPABASE_ANON_KEY = 'sb_publishable_-g72yQ4kZiLmaqtop0jpPg_3izQtM2U';
-        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    </script>
+<script>
+    // Global Supabase Client Initialization (Declared ONCE only)
+    if (typeof supabaseClient === 'undefined') {
+        var SUPABASE_URL = 'https://tfbiobjijzcbpcnrtnh.supabase.co';
+        var SUPABASE_ANON_KEY = 'sb_publishable_-g72yQ4kZiLmaqtop0jpPg_3izQtM2U';
+        var supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    }
+</script>
 </head>
 <body class="h-full bg-slate-100 text-slate-900 font-sans flex flex-col overflow-hidden">
 
