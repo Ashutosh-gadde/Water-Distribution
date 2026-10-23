@@ -269,49 +269,50 @@
         }
 
         async function loginAsCitizen() {
-            try {
-                const mobile = document.getElementById('citizen-mobile').value.trim();
-                const mobileRegex = /^[6-9]\d{9}$/;
-                
-                if (!mobileRegex.test(mobile)) {
-                    alert("Please enter a valid 10-digit Indian mobile number starting with 6, 7, 8, or 9.");
-                    return;
-                }
-
-                let { data, error } = await supabase
-                    .from('users')
-                    .select('*')
-                    .eq('mobile_number', mobile)
-                    .maybeSingle();
-
-                if (error) {
-                    console.error("Supabase Error:", error);
-                    alert("Database query error: " + error.message);
-                    return;
-                }
-
-                if (!data) {
-                    const dummyEmail = `${mobile}@citizen.latur.local`;
-                    const { data: insertData, error: insertError } = await supabase
-                        .from('users')
-                        .insert([{ email: dummyEmail, mobile_number: mobile, full_name: `Citizen ${mobile}`, role: 'citizen' }])
-                        .select()
-                        .single();
-
-                    if (insertError) {
-                        alert("Error registering citizen: " + insertError.message);
-                        return;
-                    }
-                    data = insertData;
-                }
-
-                currentUser = { role: 'citizen', identifier: `+91 ${mobile}`, ward: null };
-                initSession();
-            } catch (err) {
-                console.error("Exception in citizen login:", err);
-                alert("Login failed due to unexpected error. Check console.");
-            }
+    try {
+        const mobile = document.getElementById('citizen-mobile').value.trim();
+        const mobileRegex = /^[6-9]\d{9}$/;
+        
+        if (!mobileRegex.test(mobile)) {
+            alert("Please enter a valid 10-digit Indian mobile number starting with 6, 7, 8, or 9.");
+            return;
         }
+
+        // Query the dedicated public.citizens table
+        let { data, error } = await supabase
+            .from('citizens')
+            .select('*')
+            .eq('mobile_number', mobile)
+            .maybeSingle();
+
+        if (error) {
+            console.error("Supabase Error:", error);
+            alert("Database query error: " + error.message);
+            return;
+        }
+
+        // If citizen doesn't exist yet, automatically insert them into public.citizens
+        if (!data) {
+            const { data: insertData, error: insertError } = await supabase
+                .from('citizens')
+                .insert([{ mobile_number: mobile, full_name: `Citizen ${mobile}` }])
+                .select()
+                .single();
+
+            if (insertError) {
+                alert("Error registering citizen: " + insertError.message);
+                return;
+            }
+            data = insertData;
+        }
+
+        currentUser = { role: 'citizen', identifier: `+91 ${mobile}`, ward: null };
+        initSession();
+    } catch (err) {
+        console.error("Exception in citizen login:", err);
+        alert("Citizen login failed. Check console for details.");
+    }
+}
 
         async function loginAsStaff() {
             try {
