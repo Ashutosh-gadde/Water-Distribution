@@ -20,7 +20,12 @@
         // Initialize Supabase Client
         const SUPABASE_URL = 'https://tfbiobjijzcbpcnrtnh.supabase.co';
         const SUPABASE_ANON_KEY = 'sb_publishable_-g72yQ4kZiLmaqtop0jpPg_3izQtM2U';
-        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        let supabase = null;
+        try {
+            supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        } catch (e) {
+            console.error("Supabase Init Error:", e);
+        }
     </script>
 </head>
 <body class="h-full bg-slate-100 text-slate-900 font-sans flex flex-col overflow-hidden">
@@ -66,6 +71,7 @@
                     <span class="font-bold block text-slate-700">Database Credentials Reference:</span>
                     <div>• Officer: <code class="bg-slate-200 px-1 rounded">officer@latur.gov.in</code> / <code class="bg-slate-200 px-1 rounded">officer123</code></div>
                     <div>• Operator W1: <code class="bg-slate-200 px-1 rounded">operator_w1@latur.gov.in</code> / <code class="bg-slate-200 px-1 rounded">op123</code></div>
+                    <div>• Super Admin: <code class="bg-slate-200 px-1 rounded">superadmin@latur.gov.in</code> / <code class="bg-slate-200 px-1 rounded">admin123</code></div>
                 </div>
                 <button onclick="loginAsStaff()" class="w-full bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold py-2.5 rounded-lg shadow transition">Verify & Authenticate Staff</button>
             </div>
@@ -267,7 +273,6 @@
             { id: "LATUR-WTR-9941", mobile: "+91 9876543210", ward: "Gandhi Nagar (Ward 01)", type: "Low Water Pressure", desc: "Pressure low on 2nd floor", status: "Submitted", remark: "Pending review", coords: "18.4088, 76.5604" }
         ];
 
-        // --- AUTHENTICATION & LOGIN LOGIC ---
         function switchAuthTab(tab) {
             if(tab === 'citizen') {
                 document.getElementById('tab-auth-citizen').className = "flex-1 pb-2 border-b-2 border-blue-600 text-blue-600 text-center font-semibold";
@@ -291,26 +296,37 @@
                 return;
             }
 
-            // Check if citizen already exists in Supabase table
-            let { data, error } = await supabase
-                .from('users')
-                .select('*')
-                .eq('mobile_number', mobile)
-                .single();
-
-            // If citizen doesn't exist yet, automatically insert them into Supabase
-            if (!data) {
-                const dummyEmail = `${mobile}@citizen.latur.local`;
-                const insertRes = await supabase
+            try {
+                let { data, error } = await supabase
                     .from('users')
-                    .insert([{ email: dummyEmail, mobile_number: mobile, full_name: `Citizen ${mobile}`, role: 'citizen' }])
-                    .select()
-                    .single();
-                data = insertRes.data;
-            }
+                    .select('*')
+                    .eq('mobile_number', mobile);
 
-            currentUser = { role: 'citizen', identifier: `+91 ${mobile}`, ward: null };
-            initSession();
+                if (error) {
+                    console.error("Supabase Error:", error);
+                }
+
+                let userRecord = (data && data.length > 0) ? data[0] : null;
+
+                if (!userRecord) {
+                    const dummyEmail = `${mobile}@citizen.latur.local`;
+                    const { data: insertData, error: insertError } = await supabase
+                        .from('users')
+                        .insert([{ email: dummyEmail, mobile_number: mobile, full_name: `Citizen ${mobile}`, role: 'citizen' }])
+                        .select();
+                    
+                    if (insertData && insertData.length > 0) {
+                        userRecord = insertData[0];
+                    }
+                }
+
+                currentUser = { role: 'citizen', identifier: `+91 ${mobile}`, ward: null };
+                initSession();
+            } catch (err) {
+                console.warn("Direct DB fallback activated:", err);
+                currentUser = { role: 'citizen', identifier: `+91 ${mobile}`, ward: null };
+                initSession();
+            }
         }
 
         async function loginAsStaff() {
@@ -322,28 +338,34 @@
                 return;
             }
 
-            // Query Supabase public.users table where email matches and password matches
-            const { data, error } = await supabase
-                .from('users')
-                .select('*')
-                .eq('email', usernameInput)
-                .eq('password', passwordInput)
-                .single();
+            try {
+                const { data, error } = await supabase
+                    .from('users')
+                    .select('*')
+                    .eq('email', usernameInput)
+                    .eq('password', passwordInput);
 
-            if (error || !data) {
-                alert("Authentication Failed: Invalid username or password.");
-                console.error("Supabase Error:", error);
-                return;
+                if (error) {
+                    alert("Supabase API Error: " + error.message);
+                    return;
+                }
+
+                if (!data || data.length === 0) {
+                    alert("Authentication Failed: Invalid username or password.");
+                    return;
+                }
+
+                const userRecord = data[0];
+                currentUser = { 
+                    role: userRecord.role, 
+                    identifier: userRecord.full_name, 
+                    ward: userRecord.ward_id ? `Ward ${String(userRecord.ward_id).padStart(2, '0')}` : 'All Wards' 
+                };
+                
+                initSession();
+            } catch (err) {
+                alert("Connection Exception: " + err.message);
             }
-
-            // Set active user session based on live database response
-            currentUser = { 
-                role: data.role, 
-                identifier: data.full_name, 
-                ward: data.ward_id ? `Ward ${String(data.ward_id).padStart(2, '0')}` : 'All Wards' 
-            };
-            
-            initSession();
         }
 
         function logout() {
@@ -363,253 +385,3 @@
             const offCompSec = document.getElementById('officer-complaint-section');
 
             if (currentUser.role === 'citizen') {
-                badge.innerText = `Citizen: ${currentUser.identifier}`;
-                mgmtBtn.classList.add('hidden');
-                document.getElementById('comp-mobile').value = currentUser.identifier;
-                switchTab('map');
-            } else if (currentUser.role === 'valve_operator') {
-                badge.innerText = `Operator: ${currentUser.identifier}`;
-                mgmtBtn.classList.remove('hidden');
-                opSec.classList.remove('hidden');
-                offSchSec.classList.add('hidden');
-                offCompSec.classList.add('hidden');
-                document.getElementById('operator-ward-label').innerHTML = `Assigned Ward: <strong>${currentUser.ward}</strong>`;
-                switchTab('management');
-            } else if (currentUser.role === 'water_supply_officer' || currentUser.role === 'super_admin' || currentUser.role === 'municipal_admin') {
-                badge.innerText = currentUser.role === 'super_admin' ? `Super Admin` : `Water Supply Officer`;
-                mgmtBtn.classList.remove('hidden');
-                opSec.classList.add('hidden');
-                offSchSec.classList.remove('hidden');
-                offCompSec.classList.remove('hidden');
-                switchTab('management');
-            }
-            renderSchedules();
-            renderComplaints();
-            setTimeout(() => map.invalidateSize(), 200);
-        }
-
-        // --- MAP INITIALIZATION & BASEMAPS ---
-        const map = L.map('map').setView([18.4088, 76.5604], 14);
-
-        const basemaps = {
-            osm: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' }),
-            streets: L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', { maxZoom: 20, attribution: '© Google Maps' }),
-            satellite: L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', { maxZoom: 20, attribution: '© Google Satellite' }),
-            hybrid: L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', { maxZoom: 20, attribution: '© Google Hybrid' })
-        };
-        basemaps.osm.addTo(map);
-
-        function changeBasemap(type) {
-            Object.values(basemaps).forEach(bm => { if(map.hasLayer(bm)) map.removeLayer(bm); });
-            basemaps[type].addTo(map);
-        }
-
-        function toggleLayerMenu() {
-            const menu = document.getElementById('layer-menu-dropdown');
-            menu.classList.toggle('hidden');
-        }
-
-        // --- FETCH WARD NUMBER LOGIC FROM latur_water_assets.geojson ---
-        let geojsonLayer = null;
-
-        function loadGeoJSONData() {
-            fetch('latur_water_assets.geojson')
-                .then(res => res.json())
-                .then(data => {
-                    extractedWards = [];
-                    data.features.forEach(f => {
-                        const p = f.properties;
-                        let wardName = p.ward || p.name || p.id;
-                        if(wardName && !extractedWards.includes(wardName)) {
-                            extractedWards.push(wardName);
-                        }
-                    });
-
-                    populateWardDropdowns();
-
-                    if(geojsonLayer) map.removeLayer(geojsonLayer);
-                    geojsonLayer = L.geoJSON(data, {
-                        style: function(feature) {
-                            const p = feature.properties;
-                            let strokeColor = '#0f172a'; // Black default
-                            let wardName = p.ward || p.name;
-                            if (feature.geometry.type === 'LineString' || feature.geometry.type === 'Polygon') {
-                                if (activeWaterWard && wardName === activeWaterWard) {
-                                    strokeColor = '#10b981'; // Green for active flow
-                                } else if (p.status === 'Upcoming') {
-                                    strokeColor = '#f59e0b'; // Yellow for upcoming schedule
-                                }
-                            }
-                            if (feature.geometry.type === 'Polygon') {
-                                return { color: strokeColor, weight: 2, fillOpacity: 0.15 };
-                            }
-                            return { color: strokeColor, weight: feature.geometry.type === 'LineString' ? 5 : 2 };
-                        },
-                        pointToLayer: function(feature, latlng) {
-                            return L.circleMarker(latlng, { radius: 7, fillColor: '#3b82f6', color: '#ffffff', weight: 2, fillOpacity: 0.9 });
-                        },
-                        onEachFeature: function(feature, layer) {
-                            layer.on('click', (e) => {
-                                if (isPickingMapLocation) {
-                                    const latlng = e.latlng;
-                                    document.getElementById('comp-coords').value = `${latlng.lat.toFixed(4)}, ${latlng.lng.toFixed(4)}`;
-                                    isPickingMapLocation = false;
-                                    alert("Location captured from map successfully!");
-                                    return;
-                                }
-                                const p = feature.properties;
-                                document.getElementById('asset-details-box').innerHTML = `
-                                    <b>Asset ID:</b> ${p.id || 'N/A'}<br>
-                                    <b>Name / Ward:</b> ${p.name || p.ward || 'N/A'}<br>
-                                    <b>Type:</b> ${p.type || 'N/A'}<br>
-                                    <b>Status:</b> ${p.status || 'Standard'}
-                                `;
-                            });
-                        }
-                    }).addTo(map);
-                }).catch(e => console.log("GeoJSON fallback initialized."));
-        }
-        loadGeoJSONData();
-
-        function populateWardDropdowns() {
-            const compSelect = document.getElementById('comp-ward-select');
-            const optionsHtml = extractedWards.map(w => `<option value="${w}">${w}</option>`).join('');
-            if(compSelect) compSelect.innerHTML = optionsHtml;
-        }
-
-        function toggleRepoLayer(layerName, show) {
-            if(layerName === 'geojson' && geojsonLayer) {
-                if(show) geojsonLayer.addTo(map);
-                else map.removeLayer(geojsonLayer);
-            }
-        }
-
-        // --- OPERATOR WARD FLOW CONTROLS ---
-        function triggerAssignedWaterFlow() {
-            if(!currentUser || currentUser.role !== 'valve_operator') return;
-            activeWaterWard = currentUser.ward;
-            loadGeoJSONData();
-            document.getElementById('live-alert-banner').classList.remove('hidden');
-            document.getElementById('alert-msg').innerText = `🟢 WATER FLOW STARTED for assigned ward: ${currentUser.ward}! Pipeline symbology updated to GREEN.`;
-        }
-
-        function stopWaterFlow() {
-            activeWaterWard = null;
-            loadGeoJSONData();
-            document.getElementById('live-alert-banner').classList.remove('hidden');
-            document.getElementById('alert-msg').innerText = `⚫ Water distribution ended. Pipeline network symbology reset to BLACK standby.`;
-        }
-
-        // --- COMPLAINTS GEOLOCATION & MAP PIN ---
-        function fetchLiveLocation() {
-            if (navigator.geolocation) {
-                navigator.geolocation.getCurrentPosition(pos => {
-                    const lat = pos.coords.latitude.toFixed(4);
-                    const lng = pos.coords.longitude.toFixed(4);
-                    document.getElementById('comp-coords').value = `${lat}, ${lng}`;
-                    alert("Live location successfully fetched via GPS!");
-                }, () => {
-                    alert("Unable to retrieve your location. Please check browser permissions.");
-                });
-            } else {
-                alert("Geolocation is not supported by your browser.");
-            }
-        }
-
-        function enableMapPinSelection() {
-            isPickingMapLocation = true;
-            alert("Click anywhere on the map to select the complaint location coordinates.");
-        }
-
-        function submitComplaint() {
-            const mobile = document.getElementById('comp-mobile').value;
-            const ward = document.getElementById('comp-ward-select').value;
-            const type = document.getElementById('comp-type').value;
-            const coords = document.getElementById('comp-coords').value || '18.4088, 76.5604';
-            const desc = document.getElementById('comp-desc').value || 'No description';
-            const ref = `LATUR-WTR-${Math.floor(1000 + Math.random() * 9000)}`;
-
-            complaints.unshift({ id: ref, mobile: mobile, ward: ward, type: type, desc: desc, status: 'Submitted', remark: 'Received by Control Room', coords: coords });
-            renderComplaints();
-
-            const receipt = document.getElementById('comp-receipt');
-            receipt.classList.remove('hidden');
-            receipt.innerHTML = `✅ Complaint registered for <b>${ward}</b>!<br>Tracking Ref: <b>${ref}</b>`;
-        }
-
-        // --- RENDER SCHEDULES & COMPLAINTS ---
-        function renderSchedules() {
-            const container = document.getElementById('public-schedules-container');
-            container.innerHTML = schedules.map(s => `
-                <div class="bg-slate-50 border border-slate-200 rounded-lg p-3 text-xs space-y-1">
-                    <div class="font-bold text-slate-900">${s.ward} (${s.zone})</div>
-                    <div class="text-slate-600 font-medium">Timing: ${s.time}</div>
-                    <span class="inline-block mt-1 px-2 py-0.5 text-[10px] font-bold rounded ${s.status === 'Published' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}">${s.status}</span>
-                </div>
-            `).join('');
-        }
-
-        function renderComplaints() {
-            const citizenList = document.getElementById('citizen-complaints-list');
-            citizenList.innerHTML = complaints.map(c => `
-                <div class="bg-slate-50 border border-slate-200 rounded p-2 space-y-1">
-                    <div class="flex justify-between font-bold"><span>${c.ward}</span><span class="text-[10px] text-slate-500">${c.id}</span></div>
-                    <p class="text-slate-600 text-[11px]">${c.type}: "${c.desc}"</p>
-                    <div class="text-[10px] font-semibold text-blue-700">Status: ${c.status} (${c.remark})</div>
-                </div>
-            `).join('');
-
-            const officerList = document.getElementById('officer-complaints-list');
-            if(officerList) {
-                officerList.innerHTML = complaints.map((c, idx) => `
-                    <div class="bg-slate-50 border border-slate-200 rounded p-2.5 space-y-1.5">
-                        <div class="flex justify-between font-bold"><span>${c.ward} (${c.mobile})</span><span class="text-[10px] text-slate-500">${c.id}</span></div>
-                        <p class="text-slate-600 text-[11px]">${c.type}: ${c.desc}</p>
-                        <div class="flex items-center space-x-2 pt-1">
-                            <select onchange="updateComplaintStatus(${idx}, this.value)" class="text-[10px] border rounded p-1 bg-white">
-                                <option ${c.status === 'Submitted' ? 'selected' : ''}>Submitted</option>
-                                <option ${c.status === 'In Progress' ? 'selected' : ''}>In Progress</option>
-                                <option ${c.status === 'Resolved' ? 'selected' : ''}>Resolved</option>
-                                <option ${c.status === 'On Hold' ? 'selected' : ''}>On Hold</option>
-                            </select>
-                            <input type="text" value="${c.remark}" onchange="updateComplaintRemark(${idx}, this.value)" placeholder="Add remark..." class="text-[10px] border rounded px-1 flex-1">
-                        </div>
-                    </div>
-                `).join('');
-            }
-        }
-
-        function saveScheduleTiming() {
-            const idx = document.getElementById('edit-schedule-idx').value;
-            const newTime = document.getElementById('edit-schedule-timing').value;
-            schedules[idx].time = newTime;
-            renderSchedules();
-            alert("Schedule timing updated successfully.");
-        }
-
-        function updateComplaintStatus(idx, status) {
-            complaints[idx].status = status;
-            renderComplaints();
-        }
-
-        function updateComplaintRemark(idx, remark) {
-            complaints[idx].remark = remark;
-            renderComplaints();
-        }
-
-        // --- TAB SWITCHING ---
-        function switchTab(tab) {
-            ['map', 'schedules', 'complaints', 'management'].forEach(t => {
-                const el = document.getElementById(`tab-${t}`);
-                const btn = document.getElementById(`btn-tab-${t}`);
-                if(el) el.classList.add('hidden');
-                if(btn) btn.className = "flex-1 py-1.5 text-xs font-semibold rounded bg-white text-slate-700 border border-slate-200 hover:bg-slate-100 transition";
-            });
-            document.getElementById(`tab-${tab}`).classList.remove('hidden');
-            const activeBtn = document.getElementById(`btn-tab-${tab}`);
-            if(activeBtn) activeBtn.className = "flex-1 py-1.5 text-xs font-semibold rounded bg-blue-600 text-white transition shadow-xs";
-            setTimeout(() => map.invalidateSize(), 150);
-        }
-    </script>
-</body>
-</html>
